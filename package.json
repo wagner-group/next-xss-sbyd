@@ -1,0 +1,35 @@
+{
+  "name": "next-xss-sbyd-workspace",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "eslint-plugin-next-xss-sbyd"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "check": "npm run typecheck && npm run test:runtime && npm run test:eslint && npm run test:types && npm run test:duplicate && npm run test:compat && npm run test:sanitize-browser",
+    "test:compat": "npm run build && node scripts/test-compatibility.mjs",
+    "test:duplicate": "node scripts/test-duplicate-safevalues.mjs",
+    "test:runtime": "npm run build && node --test tests/*.test.mjs",
+    "test:eslint": "npm run build --workspace eslint-plugin-next-xss-sbyd && node --test eslint-plugin-next-xss-sbyd/tests/*.test.mjs",
+    "test:types": "node scripts/test-type-fixtures.mjs",
+    "typecheck": "tsc -b",
+    "test:passive-browser": "npm run build && node scripts/test-passive-content-browser.mjs",
+    "test:sanitize-browser": "npm run build && node scripts/test-sanitize-browser.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.1",
+    "@typescript-eslint/parser": "8.70.0",
+    "compression": "1.8.2",
+    "esbuild": "^0.25.12",
+    "eslint": "10.10.0",
+    "eslint9": "npm:eslint@9.39.5",
+    "playwright-core": "1.62.1",
+    "typescript": "^5.9.2"
+  },
+  "engines": {
+    "node": ">=20.9.0"
+  }
+}

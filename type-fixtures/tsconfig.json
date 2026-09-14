@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "jsx": "react-jsx",
+    "jsxImportSource": "next-xss-sbyd",
+    "strict": true,
+    "skipLibCheck": true,
+    "target": "ES2022",
+    "noEmit": true
+  },
+  "include": ["pass.ts", "pass-jsx.tsx"]
+}

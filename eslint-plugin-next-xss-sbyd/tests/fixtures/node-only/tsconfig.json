@@ -1,0 +1,1 @@
+{"compilerOptions":{"target":"ES2022","module":"NodeNext","moduleResolution":"NodeNext","jsxImportSource":"next-xss-sbyd","strict":true,"skipLibCheck":true,"lib":["ES2022"],"types":["node"]},"include":["app/*.ts"]}

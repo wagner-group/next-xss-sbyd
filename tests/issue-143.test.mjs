@@ -1,0 +1,22 @@
+import assert from "node:assert/strict";
+import {spawnSync} from "node:child_process";
+import {mkdir, mkdtemp, readFile, rm, writeFile} from "node:fs/promises";
+import {join} from "node:path";
+import {fileURLToPath} from "node:url";
+import test from "node:test";
+const workspace = fileURLToPath(new URL("../", import.meta.url));
+test("enable-config withholds runtime stage when the Next 14 hook is missing", async (t) => {
+  await mkdir(join(workspace, "tmp"), {recursive: true});
+  const root = await mkdtemp(join(workspace, "tmp", "issue-143-"));
+  t.after(() => rm(root, {recursive: true, force: true}));
+  await writeFile(join(root, "package.json"), JSON.stringify({name: "fixture", type: "module", dependencies: {next: "14.0.0", "next-xss-sbyd": "0.0.0"}, devDependencies: {eslint: "10.9.1", "eslint-plugin-next-xss-sbyd": "0.0.0", "@typescript-eslint/parser": "8.69.0", typescript: "5.9.2"}, "next-xss-sbyd": {stage: "lint"}}));
+  await writeFile(join(root, "tsconfig.json"), JSON.stringify({compilerOptions: {jsx: "preserve", jsxImportSource: "next-xss-sbyd"}, include: ["**/*.tsx"]}));
+  await writeFile(join(root, "page.tsx"), "export default function Page() { return <main />; }");
+  await writeFile(join(root, "eslint.config.mjs"), 'import xssSbyd from "eslint-plugin-next-xss-sbyd"; export default [...xssSbyd.configs.lintMigration];');
+  await writeFile(join(root, "instrumentation.ts"), 'export async function register() { if (process.env.NEXT_RUNTIME === "nodejs") (await import("next-xss-sbyd/enforce")).installResponseGuard(); }');
+  await writeFile(join(root, "next.config.mjs"), 'const aliases={"next/link":"next-xss-sbyd/compat/link","next/image":"next-xss-sbyd/compat/image","next/form":"next-xss-sbyd/compat/form"}; export default {turbopack:{resolveAlias:aliases},webpack(config){config.resolve.alias={...config.resolve.alias,...aliases};return config;}};');
+  const result = spawnSync(process.execPath, [join(workspace, "packages/next-xss-sbyd/dist/cli.js"), "enable-config", root, "--stage", "runtime", "--yes", "--force", "--json"], {encoding: "utf8", cwd: workspace});
+  assert.notEqual(result.status, 0);
+  const metadata = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
+  assert.equal(metadata["next-xss-sbyd"].stage, "lint");
+});

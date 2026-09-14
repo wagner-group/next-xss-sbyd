@@ -1,0 +1,7 @@
+{
+  "files": [],
+  "references": [
+    {"path": "packages/next-xss-sbyd"},
+    {"path": "eslint-plugin-next-xss-sbyd"}
+  ]
+}

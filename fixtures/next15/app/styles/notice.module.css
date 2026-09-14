@@ -1,0 +1,10 @@
+.notice {
+  box-sizing: border-box;
+  color: green;
+  padding: 8px;
+  width: 240px;
+}
+
+.dynamic {
+  height: 40px;
+}

@@ -1,0 +1,74 @@
+name: compatibility
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  contracts:
+    name: type, ESLint, and package contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run test:runtime
+      - run: npm run test:eslint
+      - run: npm run test:types
+      - run: npm run test:duplicate
+
+  sanitizer-browsers:
+    name: sanitizer Chromium, Firefox, and WebKit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node node_modules/playwright-core/cli.js install --with-deps chromium firefox webkit
+      - run: npm run test:sanitize-browser
+
+  compatibility:
+    name: compatibility-${{ matrix.fixture }}-${{ matrix.mode }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        fixture: [next14, next15, next16]
+        mode: [preload, instrumentation]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            fixtures/${{ matrix.fixture }}/package-lock.json
+      - run: npm ci
+      - run: npm run test:compat -- ${{ matrix.fixture }} --mode=${{ matrix.mode }}
+
+  required:
+    name: require all validation jobs
+    if: always()
+    needs: [contracts, compatibility, sanitizer-browsers]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every validation job to pass
+        env:
+          CONTRACTS_RESULT: ${{ needs.contracts.result }}
+          COMPATIBILITY_RESULT: ${{ needs.compatibility.result }}
+          SANITIZER_RESULT: ${{ needs.sanitizer-browsers.result }}
+        run: |
+          test "$CONTRACTS_RESULT" = success
+          test "$COMPATIBILITY_RESULT" = success
+          test "$SANITIZER_RESULT" = success

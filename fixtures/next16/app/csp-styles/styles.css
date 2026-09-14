@@ -1,0 +1,21 @@
+body { margin: 0; font: 16px system-ui, sans-serif; background: #fff; color: #16212c; }
+html[data-theme="dark"] body { background: #16212c; color: #fff; }
+.recipes { max-width: 960px; padding: 24px; }
+.recipes section { margin-block: 24px; }
+.recipes button, .recipes input { margin: 4px; }
+.fill-frame { position: relative; width: 240px; height: 160px; margin-top: 8px; }
+.dialog-overlay { position: fixed; inset: 0; background: rgb(0 0 0 / 50%); z-index: 10; }
+.dialog-content { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 320px; padding: 24px; background: white; color: black; z-index: 11; }
+.select-content { background: white; color: black; border: 1px solid #13678a; padding: 8px; z-index: 12; animation: appear 80ms ease-out; }
+[role="option"][data-highlighted] { background: #d4efff; }
+@keyframes appear { from { opacity: 0; } to { opacity: 1; } }
+.switch { width: 44px; height: 24px; border-radius: 12px; border: 0; background: #777; padding: 2px; }
+.switch[data-state="checked"] { background: #13678a; }
+.switch-thumb { display: block; width: 20px; height: 20px; background: white; border-radius: 10px; transition: transform 80ms; }
+.switch-thumb[data-state="checked"] { transform: translateX(20px); }
+.dropzone { padding: 12px; border: 2px dashed #13678a; }
+.masonry { display: flex; width: 600px; margin-block: 8px; }
+.masonry-item { border: 1px solid #13678a; padding: 4px; }
+.bounded-style[data-density="compact"] { padding: 4px; }
+.bounded-style[data-density="comfortable"] { padding: 12px; }
+.scroll-space { height: 1000px; }
