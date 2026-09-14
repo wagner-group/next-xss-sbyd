@@ -27,7 +27,7 @@
     "eslint": "10.10.0",
     "eslint9": "npm:eslint@9.39.5",
     "playwright-core": "1.62.1",
-    "typescript": "^5.9.2"
+    "typescript": "^7.0.2"
   },
   "engines": {
     "node": ">=20.9.0"
