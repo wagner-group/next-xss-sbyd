@@ -102,3 +102,30 @@ test("Turbopack configuration fails explicitly unless redirection is disabled", 
  assert.equal(disabled.status,0,disabled.stderr);
  assert.match(disabled.stderr,/disabled/);
 });
+
+// Exercise the published API in a fresh Node process, including JavaScript callers
+// that do not receive NextConfig's compile-time checks.
+test("unresolved configs and invalid options fail without discarding configuration", () => {
+ const source = `
+import assert from 'node:assert/strict';
+import {withXssSbyd} from 'next-xss-sbyd/next-config';
+for (const config of [() => ({reactStrictMode:true}), async () => ({}), Promise.resolve({}), {then() {}}, null, [], 'config']) {
+ for (const options of [{}, {redirectJsxRuntime:false}]) {
+  assert.throws(() => withXssSbyd(config, options), {name:'TypeError', message:/resolved.*configuration object/});
+ }
+}
+for (const options of [{redirectJsxRuntim:false}, {redirectJsxRuntime:'false'}, null, []]) {
+ assert.throws(() => withXssSbyd({}, options), TypeError);
+}
+for (const options of [{}, {redirectJsxRuntime:undefined}, {redirectJsxRuntime:true}]) {
+ const config = withXssSbyd({reactStrictMode:true, transpilePackages:['library']}, options);
+ assert.equal(config.reactStrictMode, true);
+ assert.deepEqual(config.transpilePackages, ['library', 'next-xss-sbyd', 'safevalues']);
+}
+const config = await (async () => ({reactStrictMode:true, images:{domains:['example.com']}}))();
+assert.equal(withXssSbyd(config, {redirectJsxRuntime:false}), config);
+assert.deepEqual(withXssSbyd(config).images, config.images);
+`;
+ const result = spawnSync(process.execPath, ["--input-type=module", "-e", source], {cwd:root, encoding:"utf8"});
+ assert.equal(result.status, 0, result.stderr);
+});

@@ -16,6 +16,10 @@ const major = Number(fixture.slice(4));
 const repair = "Inspect packages/next-xss-sbyd/src/next-config.ts: Next may have changed webpack's issuer paths, externalization, aliases, condition names, or JSX runtime imports. Update the resolver/exclusions without redirecting Next internals or the checking runtime back to itself.";
 await mkdir(join(root, "tmp"), {recursive: true});
 const directory = await mkdtemp(join(root, "tmp", `jsx-next-${fixture}-`));
+// Retain diagnostics for any failure, including setup and browser launch errors.
+process.once("exit", code => {
+  if (code !== 0) console.error(`Next JSX redirection failure logs: ${directory}`);
+});
 const modules = join(directory, "node_modules");
 await mkdir(modules);
 
@@ -37,14 +41,14 @@ if (major >= 16) await rm(join(directory, "app/edge"), {recursive: true});
 await cp(join(root, "tests/jsx-redirection-fixture/pages"), join(directory, "pages"), {recursive: true});
 await writeFile(join(directory, "package.json"), JSON.stringify({name: "jsx-redirection-next-test", private: true, type: "module"}));
 const probes = await readFile(join(root, "tests/jsx-redirection-fixture/probes.js"), "utf8");
-for (const kind of ["esm", "cjs", "lazy", "external"]) {
+for (const kind of ["esm", "cjs", "lazy", "external", "untranspiled-esm", "untranspiled-cjs"]) {
   const name = `jsx-probe-${kind}`;
   await mkdir(join(modules, name));
   // Omit type for conventional CJS: Next 14 Pages refresh injects import.meta,
   // which webpack rejects if the package explicitly declares type:commonjs.
-  await writeFile(join(modules, name, "package.json"), JSON.stringify({name, version: "1.0.0", type: kind === "cjs" || kind === "external" ? undefined : "module", main: "index.js"}));
+  await writeFile(join(modules, name, "package.json"), JSON.stringify({name, version: "1.0.0", type: kind.endsWith("cjs") || kind === "external" ? undefined : "module", main: "index.js"}));
   let source = probes;
-  if (kind === "cjs") source = source.replaceAll(/import \{([^}]+)\} from "([^"]+)";/g, 'const {$1} = require("$2");').replaceAll(/export function (\w+)\(/g, "exports.$1 = function $1(");
+  if (kind.endsWith("cjs")) source = source.replaceAll(/import \{([^}]+)\} from "([^"]+)";/g, 'const {$1} = require("$2");').replaceAll(/export function (\w+)\(/g, "exports.$1 = function $1(");
   if (kind === "external") source = 'const {jsx} = require("react/jsx-runtime"); module.exports = function external() {return jsx("div", {dangerouslySetInnerHTML: {__html: "external-raw"}}).props.dangerouslySetInnerHTML.__html;};';
   await writeFile(join(modules, name, "index.js"), source);
 }
@@ -176,6 +180,11 @@ try {
           const legacyResponse = await ssr.goto(`${address}/legacy`);
           assert.equal(legacyResponse.status(), 200, `${label}: Pages SSR failed. Next may be externalizing the checking runtime as an asynchronous ESM module, which breaks synchronous CommonJS consumers. Inspect next-config.ts and ${directory}/${label}.log.`);
           for (const id of ["legacy-esm", "legacy-cjs"]) verifyProbes(JSON.parse(await ssr.locator(`#${id}`).textContent()), enabled, mode === "development", `${label}/PagesSSR/${id}`);
+          // Neither package is in transpilePackages or serverExternalPackages:
+          // this pins Pages Router's DEFAULT externalization for ESM and CJS.
+          for (const format of ["esm", "cjs"]) {
+            verifyProbes(JSON.parse(await ssr.locator(`#legacy-untranspiled-${format}`).textContent()), false, mode === "development", `${label}/PagesSSR/untranspiled-${format}: default externalization changed; revisit caveats.md`);
+          }
           await verifyCompiled(ssr, "legacy-compiled", enabled, `${label}/PagesSSR`);
           if (enabled) {
             assert.equal(await ssr.locator("#legacy-safe-esm").textContent(), "<b>safe esm</b>", "Pages ESM SafeHtml provenance failed; bundle a single safevalues instance with the checked runtime.");
@@ -223,4 +232,4 @@ try {
     } finally { await stop(server); }
   }
 } finally { await browser.close(); }
-console.log(`Next JSX redirection logs: ${directory}`);
+await rm(directory, {recursive: true, force: true});

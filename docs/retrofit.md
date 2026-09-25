@@ -294,12 +294,12 @@ every `dangerously*` attribute unless a supported HTML attribute contains a
 verifies `jsxImportSource: "next-xss-sbyd"`, `no-danger` stops reporting JSX spreads
 because the runtime checks the final merged props even when a spread is typed as `any`.
 Explicit raw-HTML attributes remain lint errors, as do raw-HTML props passed through
-`createElement` or `cloneElement`. With `withXssSbyd`, bundled precompiled libraries
-that import React's automatic JSX runtime also use these checks. Libraries that
-create elements through `createElement`, change props later through `cloneElement`,
-ship their own runtime, or remain external to the server bundle still need review
-and validation at their final HTML sinks. Existing raw-HTML or unsupported-URL uses
-in dependencies may now throw; test representative pages before deployment.
+`createElement` or `cloneElement`. `withXssSbyd` makes a best-effort attempt to
+partially mitigate third-party library risk by applying these checks to more dependency rendering. Coverage remains
+incomplete, and libraries can still produce unsafe HTML. Review security-sensitive
+dependencies and [the remaining limits](caveats.md#third-party-components-and-dependencies).
+Existing raw-HTML or unsupported-URL uses in dependencies may now throw; test
+representative pages before deployment.
 Applications that
 cannot select this JSX runtime, including those
 that require another `jsxImportSource`, must retain explicit lint protection for

@@ -21,6 +21,19 @@ function normalized(filename: string): string {
  * This does not cover external modules, classic React calls, or DOM writes.
  */
 export function withXssSbyd(config: NextConfig = {}, options: XssSbydOptions = {}): NextConfig {
+  if (config === null || typeof config !== "object" || Array.isArray(config) ||
+      ("then" in config && typeof config.then === "function")) {
+    throw new TypeError("next-xss-sbyd: withXssSbyd requires a resolved Next.js configuration object. In function/async configs, call it on the object after resolving the configuration.");
+  }
+  if (options === null || typeof options !== "object" || Array.isArray(options)) {
+    throw new TypeError("next-xss-sbyd: options must be an object.");
+  }
+  for (const key of Object.keys(options)) {
+    if (key !== "redirectJsxRuntime") throw new TypeError(`next-xss-sbyd: unknown option ${key}. Expected redirectJsxRuntime.`);
+  }
+  if (options.redirectJsxRuntime !== undefined && typeof options.redirectJsxRuntime !== "boolean") {
+    throw new TypeError("next-xss-sbyd: redirectJsxRuntime must be a boolean.");
+  }
   if (options.redirectJsxRuntime === false) {
     console.warn("next-xss-sbyd: JSX import redirection is disabled; dependency JSX imports are unchecked.");
     return config;

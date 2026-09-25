@@ -141,6 +141,34 @@ some `asChild` composition), server dependencies left external to the bundle,
 vendored JSX runtimes, or direct DOM operations. Redirecting a library's JSX import
 does not establish that its final HTML element passes through the checks.
 
+In Pages Router, Next.js normally loads server dependencies directly from
+`node_modules`, outside webpack. With this default configuration, redirection reaches
+server-rendered dependency JSX only for packages included in `transpilePackages`;
+the wrapper does not add your
+third-party libraries to that list automatically. Client-side checks cannot undo an
+injection already emitted in the server response: an injected script may run before
+hydration, and a later client-side rejection can also break hydration.
+
+To include a JSX-bearing dependency in Pages server checks, add its package name to
+your existing configuration before wrapping it, and test its normal and hostile-input
+rendering in production and development:
+
+```js
+export default withXssSbyd({
+  // Preserve existing entries; include JSX-bearing transitive packages as needed.
+  transpilePackages: ["your-component-library"],
+});
+```
+
+This is a partial mitigation, not a guarantee about all output from that library.
+App Router bundles dependencies by default, but explicitly externalized packages
+remain outside these checks. The integration tests pin both the checked, transpiled
+Pages dependencies and the unchecked default ESM/CommonJS dependency behavior.
+
+The runtime omits an exactly empty `img src` rather than rejecting it, accommodating
+libraries such as React Markdown that represent rejected image URLs as empty strings.
+Whitespace-only or unsafe nonempty URLs and empty active-resource URLs still throw.
+
 Turbopack is unsupported for JSX import redirection. Selecting
 `withXssSbyd(config, {redirectJsxRuntime: false})` explicitly disables it; application
 `jsxImportSource` and the separate Next.js component aliases retain their own checks.
