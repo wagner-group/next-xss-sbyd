@@ -291,16 +291,16 @@ cannot select this JSX runtime, including those
 that require another `jsxImportSource`, must retain explicit lint protection for
 spreads.
 
-Replace intrinsic iframes with `SafeIframe`. This solves the mismatch between React's
+Replace intrinsic iframes with `SafeExternalIframe`. This solves the mismatch between React's
 string-only iframe `src` type and the `TrustedResourceUrl` required for active content,
 and adds a fixed sandbox policy:
 
 ```tsx
-import { SafeIframe, trustedResourceUrl } from "next-xss-sbyd";
+import { SafeExternalIframe, trustedResourceUrl } from "next-xss-sbyd";
 
 export function ArchivedPage({ assetId }: { assetId: string }) {
   return (
-    <SafeIframe
+    <SafeExternalIframe
       src={trustedResourceUrl`/api/assets/${assetId}`}
       sandbox=""
       title="Archived page"
@@ -314,7 +314,7 @@ interpolation. Keep the fixed `/api/assets/` prefix and review literal URL synta
 [backslashes or empty interpolations that can change the origin](caveats.md#sanitization-and-trusted-content-decisions).
 Choose `sandbox=""` for static HTML documents or
 `sandbox="allow-scripts"` when the framed document must execute scripts.
-`SafeIframe` deliberately rejects `allow-same-origin`, including its combination with
+`SafeExternalIframe` deliberately rejects `allow-same-origin`, including its combination with
 `allow-scripts`, because a document that becomes same-origin could remove its sandbox.
 It also rejects `srcDoc` and `dangerously*` props. Add only the required sources to the
 CSP, such as `frameSrc: ["'self'"]` for the route above or an exact HTTPS origin for a
@@ -338,7 +338,7 @@ Some active sinks do not have a typed JSX carrier. Migrate them as follows:
   reviewed exceptions. Prefer ordinary passive images or reconstruct the graphic as
   application-owned JSX when possible.
 
-The active-URL lint rule checks intrinsic elements, not `SafeIframe`; the component's
+The active-URL lint rule checks intrinsic elements, not `SafeExternalIframe`; the component's
 prop type requires `TrustedResourceUrl`, and its runtime checks verify the object
 was created by this package.
 

@@ -21,23 +21,23 @@ export function SafeBlock({as = "div", html, ...props}: SafeBlockProps): ReactEl
   return createElement(as, {...props, dangerouslySetInnerHTML: {__html: unwrapHtml(html)}});
 }
 
-export type SafeIframeSandbox = "" | "allow-scripts";
+export type SafeExternalIframeSandbox = "" | "allow-scripts";
 
-export interface SafeIframeProps extends Omit<
+export interface SafeExternalIframeProps extends Omit<
   ComponentPropsWithoutRef<"iframe">,
   "dangerouslySetInnerHTML" | "sandbox" | "src" | "srcDoc"
 > {
   readonly src: TrustedResourceUrl;
-  readonly sandbox: SafeIframeSandbox;
+  readonly sandbox: SafeExternalIframeSandbox;
 }
 
-const SAFE_IFRAME_SANDBOXES: ReadonlySet<SafeIframeSandbox> = new Set(["", "allow-scripts"]);
+const SAFE_EXTERNAL_IFRAME_SANDBOXES: ReadonlySet<SafeExternalIframeSandbox> = new Set(["", "allow-scripts"]);
 
 /** Renders a developer-controlled iframe URL under one of two fixed sandbox profiles. */
-export function SafeIframe({src, sandbox, ...props}: SafeIframeProps): ReactElement {
+export function SafeExternalIframe({src, sandbox, ...props}: SafeExternalIframeProps): ReactElement {
   const unwrappedSrc = unwrapResourceUrl(src);
-  if (!SAFE_IFRAME_SANDBOXES.has(sandbox)) {
-    throw new TypeError(`Unsafe SafeIframe sandbox: ${JSON.stringify(sandbox)}`);
+  if (!SAFE_EXTERNAL_IFRAME_SANDBOXES.has(sandbox)) {
+    throw new TypeError(`Unsafe SafeExternalIframe sandbox: ${JSON.stringify(sandbox)}`);
   }
   for (const name of Object.keys(props)) {
     const normalizedName = name.toLowerCase();
@@ -47,11 +47,20 @@ export function SafeIframe({src, sandbox, ...props}: SafeIframeProps): ReactElem
       normalizedName === "srcdoc" ||
       normalizedName.startsWith("dangerously")
     ) {
-      throw new TypeError(`Unsafe SafeIframe prop: ${JSON.stringify(name)}`);
+      throw new TypeError(`Unsafe SafeExternalIframe prop: ${JSON.stringify(name)}`);
     }
   }
   return createElement("iframe", {...props, sandbox, src: unwrappedSrc});
 }
+
+/** @deprecated Use SafeExternalIframe instead. */
+export const SafeIframe = SafeExternalIframe;
+
+/** @deprecated Use SafeExternalIframeProps instead. */
+export type SafeIframeProps = SafeExternalIframeProps;
+
+/** @deprecated Use SafeExternalIframeSandbox instead. */
+export type SafeIframeSandbox = SafeExternalIframeSandbox;
 
 function snapshotJson(value: unknown, ancestors: Set<object>, path: string): JsonValue {
   if (value === null || typeof value === "string" || typeof value === "boolean") return value;

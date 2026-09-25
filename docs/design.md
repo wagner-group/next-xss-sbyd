@@ -197,16 +197,20 @@ check that origin and path are literal developer-controlled data.
 React's type system only accepts a string for the `src` attribute of an
 iframe, so a web application cannot write JSX like `<iframe src=...>`
 and pass a `TrustedResourceUrl` as the URL.
-`SafeIframe` provides a way to express this,
+`SafeExternalIframe` provides a way to express this,
 while complying with the TypeScript type system.
-At runtime `SafeIframe` verifies that the URL is a safe
+At runtime `SafeExternalIframe` verifies that the URL is a safe
 `TrustedResourceUrl`, and requires that the iframe either choose
 all sandbox restrictions (`sandbox=""`) or allow scripts without
 same-origin privileges (`sandbox="allow-scripts"`).
 In particular, it never permits `allow-scripts` together with
 `allow-same-origin`, because a document that becomes same-origin could remove its own
 sandbox.
-Applications should use `SafeIframe` for new iframe code.
+Applications should use `SafeExternalIframe` for new iframe code. The name refers to
+URL-loaded documents, including same-origin URLs; it does not enforce a different
+origin. `SafeIframe`, `SafeIframeProps`, and `SafeIframeSandbox` remain deprecated
+aliases for `SafeExternalIframe`, `SafeExternalIframeProps`, and
+`SafeExternalIframeSandbox`.
 
 ### Safe streams
 

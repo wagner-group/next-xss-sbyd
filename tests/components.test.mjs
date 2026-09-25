@@ -9,6 +9,7 @@ import {
   htmlEscape,
   readJsonScript,
   SafeBlock,
+  SafeExternalIframe,
   SafeIframe,
   SafeJsonLdScript,
   SafeJsonScript,
@@ -18,10 +19,19 @@ import {
   trustedResourceUrl,
 } from "next-xss-sbyd";
 
-test("SafeIframe renders only trusted resources under a fixed sandbox policy", () => {
+test("SafeIframe remains an alias for SafeExternalIframe", () => {
+  assert.equal(SafeIframe, SafeExternalIframe);
+  const src = trustedResourceUrl`https://video.example/embed/123`;
+  assert.equal(
+    renderToStaticMarkup(createElement(SafeIframe, {src, sandbox: ""})),
+    '<iframe sandbox="" src="https://video.example/embed/123"></iframe>',
+  );
+});
+
+test("SafeExternalIframe renders only trusted resources under a fixed sandbox policy", () => {
   const src = trustedResourceUrl`https://video.example/embed/123`;
   const onLoad = () => undefined;
-  const iframe = SafeIframe({
+  const iframe = SafeExternalIframe({
     src,
     sandbox: "allow-scripts",
     title: "Example video",
@@ -36,23 +46,23 @@ test("SafeIframe renders only trusted resources under a fixed sandbox policy", (
     '<iframe title="Example video" loading="lazy" class="embed" sandbox="allow-scripts" src="https://video.example/embed/123"></iframe>',
   );
   assert.equal(
-    renderToStaticMarkup(createElement(SafeIframe, {src, sandbox: "", title: "Static content"})),
+    renderToStaticMarkup(createElement(SafeExternalIframe, {src, sandbox: "", title: "Static content"})),
     '<iframe title="Static content" sandbox="" src="https://video.example/embed/123"></iframe>',
   );
 });
 
-test("SafeIframe rejects values that bypass its TypeScript contract", () => {
+test("SafeExternalIframe rejects values that bypass its TypeScript contract", () => {
   const src = trustedResourceUrl`https://video.example/embed/123`;
   for (const invalidSrc of ["https://video.example/embed/123", {privateDoNotAccessOrElseTrustedResourceUrlWrappedValue: "https://video.example/embed/123"}]) {
     assert.throws(
-      () => renderToStaticMarkup(createElement(SafeIframe, {src: invalidSrc, sandbox: ""})),
+      () => renderToStaticMarkup(createElement(SafeExternalIframe, {src: invalidSrc, sandbox: ""})),
       /unwrap TrustedResourceUrl/,
     );
   }
   for (const sandbox of ["allow-same-origin", "allow-scripts allow-same-origin", "allow-popups", undefined]) {
     assert.throws(
-      () => renderToStaticMarkup(createElement(SafeIframe, {src, sandbox})),
-      /Unsafe SafeIframe sandbox/,
+      () => renderToStaticMarkup(createElement(SafeExternalIframe, {src, sandbox})),
+      /Unsafe SafeExternalIframe sandbox/,
     );
   }
   for (const props of [
@@ -64,8 +74,8 @@ test("SafeIframe rejects values that bypass its TypeScript contract", () => {
     {DangerouslyAnything: "unsafe"},
   ]) {
     assert.throws(
-      () => renderToStaticMarkup(createElement(SafeIframe, {src, sandbox: "", ...props})),
-      /Unsafe SafeIframe prop/,
+      () => renderToStaticMarkup(createElement(SafeExternalIframe, {src, sandbox: "", ...props})),
+      /Unsafe SafeExternalIframe prop/,
     );
   }
 });

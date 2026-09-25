@@ -14,7 +14,7 @@ import {
   resourceUrlOrNull,
   SafeResponse,
 } from "next-xss-sbyd";
-import {SafeBlock, SafeIframe, SafeJsonScript, SafeScriptBlock, SafeStyleBlock} from "next-xss-sbyd";
+import {SafeBlock, SafeExternalIframe, SafeJsonScript, SafeScriptBlock, SafeStyleBlock} from "next-xss-sbyd";
 import type {CspNonce} from "next-xss-sbyd/csp";
 import {createContentSecurityPolicy} from "next-xss-sbyd/csp";
 import {
@@ -36,18 +36,18 @@ formActionUrl("/submit");
 const optionalNavigation: SafeNavigationUrl | null = navigationUrlOrNull("/account");
 const optionalResource: SafeResourceUrl | null = resourceUrlOrNull("/avatar.png");
 SafeBlock({html});
-SafeIframe({src: resourceUrl, sandbox: "", title: "Static content"});
-SafeIframe({src: resourceUrl, sandbox: "allow-scripts", title: "Scripted embed"});
-// @ts-expect-error SafeIframe requires a sandbox policy.
-SafeIframe({src: resourceUrl});
-// @ts-expect-error SafeIframe accepts only its fixed sandbox profiles.
-SafeIframe({src: resourceUrl, sandbox: "allow-same-origin"});
-// @ts-expect-error SafeIframe rejects the sandbox-escape-prone scripts/same-origin pairing.
-SafeIframe({src: resourceUrl, sandbox: "allow-scripts allow-same-origin"});
-// @ts-expect-error SafeIframe does not accept srcDoc.
-SafeIframe({src: resourceUrl, sandbox: "", srcDoc: "<p>unsafe</p>"});
-// @ts-expect-error SafeIframe requires TrustedResourceUrl rather than a string.
-SafeIframe({src: "https://example.com/embed", sandbox: ""});
+SafeExternalIframe({src: resourceUrl, sandbox: "", title: "Static content"});
+SafeExternalIframe({src: resourceUrl, sandbox: "allow-scripts", title: "Scripted embed"});
+// @ts-expect-error SafeExternalIframe requires a sandbox policy.
+SafeExternalIframe({src: resourceUrl});
+// @ts-expect-error SafeExternalIframe accepts only its fixed sandbox profiles.
+SafeExternalIframe({src: resourceUrl, sandbox: "allow-same-origin"});
+// @ts-expect-error SafeExternalIframe rejects the sandbox-escape-prone scripts/same-origin pairing.
+SafeExternalIframe({src: resourceUrl, sandbox: "allow-scripts allow-same-origin"});
+// @ts-expect-error SafeExternalIframe does not accept srcDoc.
+SafeExternalIframe({src: resourceUrl, sandbox: "", srcDoc: "<p>unsafe</p>"});
+// @ts-expect-error SafeExternalIframe requires TrustedResourceUrl rather than a string.
+SafeExternalIframe({src: "https://example.com/embed", sandbox: ""});
 SafeJsonScript({id: "state", data: {safe: true}});
 SafeScriptBlock({script, nonce});
 SafeStyleBlock({css: styleSheet, nonce});
@@ -199,3 +199,20 @@ const uncheckedPassive: PassiveResponse = Response.json({ok: true});
 const clonedPassive: PassiveResponse = passive.clone();
 // @ts-expect-error The brand symbol is private to the package.
 import {passiveResponseBrand} from "next-xss-sbyd/route-handler";
+
+// Deprecated iframe aliases remain compatible with the renamed public types.
+import {SafeIframe} from "next-xss-sbyd";
+import type {
+  SafeExternalIframeProps,
+  SafeExternalIframeSandbox,
+  SafeIframeProps,
+  SafeIframeSandbox,
+} from "next-xss-sbyd";
+const externalSandbox: SafeExternalIframeSandbox = "allow-scripts";
+const legacySandbox: SafeIframeSandbox = externalSandbox;
+const externalProps: SafeExternalIframeProps = {src: resourceUrl, sandbox: legacySandbox};
+const legacyProps: SafeIframeProps = externalProps;
+SafeIframe(legacyProps);
+SafeExternalIframe(legacyProps);
+// @ts-expect-error The deprecated sandbox type retains the fixed policy.
+const invalidLegacySandbox: SafeIframeSandbox = "allow-same-origin";
