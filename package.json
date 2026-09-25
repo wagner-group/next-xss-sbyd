@@ -20,7 +20,9 @@
     "test:sanitize-browser": "npm run build && node scripts/test-sanitize-browser.mjs",
     "test:toolchain": "node --test scripts/test-toolchain.mjs",
     "test:react": "node --test scripts/test-react-compatibility.mjs",
-    "test:frame-browser": "npm run build && node scripts/test-sanitized-frame-browser.mjs"
+    "test:frame-browser": "npm run build && node scripts/test-sanitized-frame-browser.mjs",
+    "test:playwright": "npm run build && node scripts/test-playwright-csp.mjs",
+    "test:playwright-next": "npm run build && node scripts/test-playwright-next.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.6.2",
@@ -31,7 +33,8 @@
     "eslint9": "npm:eslint@9.39.5",
     "playwright-core": "1.62.1",
     "typescript": "~6.0.3",
-    "semver": "^7.8.5"
+    "semver": "^7.8.5",
+    "@playwright/test": "1.62.1"
   },
   "engines": {
     "node": "^22.22.2 || ^24.15.0 || ^26.0.0"

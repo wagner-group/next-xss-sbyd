@@ -10,6 +10,8 @@ For adoption guidance, see [building a new application](docs/newcode.md) or
 [retrofitting an existing application](docs/retrofit.md). The
 [design document](docs/design.md) describes the approach, and
 [caveats and residual risks](docs/caveats.md) identifies its limits.
+Use the optional [Playwright integration](docs/playwright.md) to make existing
+functional tests fail on unexpected CSP violations and check enforcing nonce policies.
 `next-xss-sbyd` requires that the application be written in
 TypeScript with type information.
 

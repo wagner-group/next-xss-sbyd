@@ -45,6 +45,28 @@ jobs:
       - run: npm run test:sanitize-browser
       - run: npm run test:frame-browser
 
+  playwright-csp:
+    name: Playwright CSP Chromium, Firefox, and WebKit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium firefox webkit
+      - run: npm run test:playwright
+      - run: npm run test:playwright-next
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-csp-diagnostics
+          path: |
+            tmp/playwright-csp/
+            tmp/playwright-next/
+
   compatibility:
     name: compatibility-node${{ matrix.node }}-${{ matrix.fixture }}-${{ matrix.mode }}
     runs-on: ubuntu-latest
@@ -70,7 +92,7 @@ jobs:
   required:
     name: require all validation jobs
     if: always()
-    needs: [contracts, compatibility, sanitizer-browsers]
+    needs: [contracts, compatibility, sanitizer-browsers, playwright-csp]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -79,7 +101,9 @@ jobs:
           CONTRACTS_RESULT: ${{ needs.contracts.result }}
           COMPATIBILITY_RESULT: ${{ needs.compatibility.result }}
           SANITIZER_RESULT: ${{ needs.sanitizer-browsers.result }}
+          PLAYWRIGHT_RESULT: ${{ needs.playwright-csp.result }}
         run: |
           test "$CONTRACTS_RESULT" = success
           test "$COMPATIBILITY_RESULT" = success
           test "$SANITIZER_RESULT" = success
+          test "$PLAYWRIGHT_RESULT" = success
