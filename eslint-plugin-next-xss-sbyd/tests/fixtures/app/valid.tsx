@@ -1,14 +1,12 @@
 import type {NextApiResponse} from "next";
-import {SafeBlock, SafeJsonScript, SafeResponse, formActionUrl, htmlEscape, navigationUrl, resourceUrl} from "next-xss-sbyd";
+import {SafeBlock, SafeJsonScript, SafeResponse, htmlEscape, validateUrl} from "next-xss-sbyd";
 import {safeRenderToString} from "next-xss-sbyd/render";
 import {trustedScriptUrl} from "next-xss-sbyd";
-import type {SafeNavigationUrl as ImportedNavigationUrl} from "next-xss-sbyd";
+type NavigationAlias = string;
 
-type NavigationAlias = ImportedNavigationUrl;
-
-const navigation = navigationUrl("/account");
-const resource = resourceUrl("/avatar.png");
-const form = formActionUrl("/submit");
+const navigation = validateUrl("/account");
+const resource = validateUrl("/avatar.png");
+const form = validateUrl("/submit");
 const trusted = trustedScriptUrl`https://cdn.example.test/app.js`;
 const aliasedNavigation: NavigationAlias = navigation;
 

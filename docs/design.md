@@ -108,20 +108,16 @@ safe value
 HTML response
 ```
 
-After sanitization, the result carries a **brand** that records which uses are safe.
-For example, `sanitizeUserHtml()` returns `SafeHtml`, and `navigationUrl()` returns
-`SafeNavigationUrl`. Requiring these types prevents accidentally passing an unchecked
-string to an API that can introduce XSS.
+After HTML sanitization, the result carries a **brand** that records which uses are safe.
+For example, `sanitizeUserHtml()` returns `SafeHtml`. Requiring this type prevents
+accidentally passing an unchecked string to an HTML API.
 
-There are two implementations. `SafeHtml` and the other SafeValues types are objects
-with runtime checks. Casting a string or copying object fields cannot create an
-accepted object. `SafeNavigationUrl`, `SafeResourceUrl`, and `SafeFormActionUrl` are
-strings with distinct TypeScript types. Those types exist only during type checking,
-so the JSX runtime validates the actual URL string as well.
+`SafeHtml` and the other SafeValues types are objects with runtime checks.
+Casting a string or copying object fields cannot create an accepted object.
+Passive URLs are ordinary strings: the JSX runtime validates their actual values
+at each sink. A validated passive URL is not trusted as a script source;
+active sinks require a `TrustedScriptUrl` object.
 
-This design prevents accidental misuse of sanitizers and accidental use of a sanitized
-value in a context it wasn't intended for. A navigation URL is not automatically safe
-as a script source or form target.
 We preserve the
 standard `Response`, `NextResponse`, and Pages Router interfaces while checking
 the type and brand of values flowing to them. ESLint rejects calls that bypass these
@@ -146,47 +142,41 @@ before marking it safe.
 Reusing these types allows us to take advantage of the
 careful vetting of the `safevalues` package.
 
-### Sink-specific URL types
+### Passive URL validation and active URL types
 
-Dynamic URLs that are injected into HTML must be validated.
-For example, if an attacker can specify the URL, they can
-specify a `javascript:` URL, enabling XSS.  We provide validators
-to ensure that a dynamic URL is safe. The validation strategy
-depends on how the URL will be used, so we provide multiple
-options:
+Dynamic URLs injected into HTML must be validated to reject `javascript:` and
+other executable schemes. Navigation, passive image/media resources, and form
+submission targets share one validator; they have no separate URL brands.
 
-| Type | Allowed destination | Representative sink | Normal constructor |
-| --- | --- | --- | --- |
-| `SafeNavigationUrl` | root-relative, HTTP(S), `mailto:`, `tel:` | anchor and `Link` | `navigationUrl` |
-| `SafeResourceUrl` | root-relative or HTTP(S) passive resource | image/media `src` | `resourceUrl` |
-| `SafeFormActionUrl` | same-origin root-relative target | form action | `formActionUrl` |
-| `TrustedScriptUrl` | resource controlled by the developer | script, iframe | `trustedScriptUrl` |
+| API or type | Allowed destination | Representative sink |
+| --- | --- | --- |
+| `validateUrl(value: string): string` | root-relative, HTTP(S), validated `mailto:`/`tel:` | anchor, `Link`, image/media, form action |
+| `validateUrlOrNull(value: string): string \| null` | identical policy; returns `null` for invalid input | optional passive URL |
+| `TrustedScriptUrl` | resource controlled by the developer | script, iframe |
 
-`navigationUrl`, `resourceUrl`, and `formActionUrl` whitelist the
-protocol (scheme). They reject controls, whitespace,
-backslashes, credentials, references beginning with `//`, non-hierarchical schemes
-such as `data:`, and schemes
-outside their allowlist.
-The `navigationUrlOrNull` and `resourceUrlOrNull` variants apply identical validation
-and canonicalization but return `null`, rather than throwing, when an optional value is
-invalid. They cover only `navigationUrl` and `resourceUrl`; functions that combine URL parts still throw.
+`validateUrl` canonicalizes accepted URLs and throws on invalid input. It rejects
+controls, whitespace, backslashes, credentials, protocol-relative references
+beginning with `//`, `data:`, `blob:`, and schemes outside its allowlist.
+`validateUrlOrNull` applies the same validation and canonicalization but returns
+`null` instead of throwing. These checks prevent executable URL schemes; they do
+not establish that a destination is trustworthy or meaningful for a particular
+HTML element. For example, `mailto:` passes validation for an image but cannot
+supply image bytes.
 
-We provide a way to construct dynamic URLs. String interpolation
-is dangerous because it can introduce XSS or path traversal.
-Instead, we provide helpers like `relativePath`, `pathSegment`,
-`withQuery`, etc. to build up dynamic URLs.
+External HTTP(S) form targets pass URL validation. CSP `form-action` remains an
+independent destination restriction; the default policy allows only `'self'`.
 
-Sinks (places that accept URLs) can be decomposed into passive
-vs active sinks. An active sink is one where the URL refers to
-some Javascript that will be executed, e.g., `<script src=...>`.
-A passive sink is one that won't execute Javascript, e.g.,
-`<img src=...>`, assuming the URL has been validated (e.g.,
-is not a `javascript:...` style URL).
+Use `pathSegment` and `queryValue` to encode dynamic data. These retain their
+`PathSegment` and `QueryValue` brands. `relativePath` and `relativeResourcePath`
+construct root-relative URLs and return ordinary strings. `withQuery` accepts an
+ordinary string and validates both its input and the resulting URL. These builders
+still throw on invalid input.
 
-Branded types for passive URLs are string subtypes. The JSX runtime accepts
-ordinary strings at passive sinks, applies the appropriate validator after JSX spreads
-are merged, and throws if the URL is unsafe. The brands remain useful for early
-validation and non-JSX APIs, but passive JSX props do not require them.
+The JSX runtime accepts ordinary strings at passive sinks, validates them after
+JSX spreads are merged, and throws if a URL is invalid. Next.js compatibility
+components apply the same policy. The HTML sanitizer uses the nullable validator
+to remove invalid URL attributes. Early validation with `validateUrl` is optional
+and does not bypass these sink checks.
 
 Active sinks use SafeValues objects. In particular,
 `TrustedScriptUrl` is a SafeValues object, because it refers to
@@ -269,7 +259,7 @@ failures throw rather than returning uncleaned input. Browser consumers do not n
 JSDOM or `isomorphic-dompurify` in their bundle.
 
 After parsing, the pipeline enforces per-element attributes and parent constraints,
-validates decoded URLs with the existing navigation/resource validators, and writes
+validates decoded URLs with `validateUrlOrNull`, and writes
 fixed link/image/media attributes. Text labels retain punctuation and colons. Only the
 finished HTML becomes a `SafeHtml` object. Application code receives no mutable DOM,
 engine instance, hook, or cleaning callback. See the [exact policy](sanitize.md).
@@ -699,8 +689,9 @@ TypeScript code without repeated checks.
 
 ### Context-specific brands
 
-HTML, form destinations, image URLs, script URLs, JavaScript, and CSS each have different
-safety rules and require different sanitizers.
+HTML, trusted script URLs, JavaScript, and CSS have different safety rules and
+require different constructors. Passive URLs share one validation policy and do
+not need distinct types.
 A separate type for each use prevents a value checked under one set of
 rules from being used where a different set is required.
 

@@ -91,9 +91,10 @@ including `aria-label="Warning: hot"`, `title="Warning: hot"`, and colon-contain
 `alt`/`abbr`; treating these as text does not bypass URL, enum, or numeric validation.
 
 The shared pipeline validates decoded attributes after HTML parsing with
-`navigationUrlOrNull()` for links and `resourceUrlOrNull()` for resources, writing their
-canonical output. Resource URLs allow HTTP(S) and root-relative paths. Links also
-allow supported `mailto:` and `tel:` forms. Invalid attributes disappear, with the
+`validateUrlOrNull()` for both links and resources, writing its canonical output.
+Both allow HTTP(S), root-relative paths, and supported `mailto:`/`tel:` forms.
+Passing URL validation does not mean an image or media URL will load successfully.
+Invalid attributes disappear, with the
 source-element exception above. Script URLs, credentials, forbidden whitespace/control
 characters, backslashes, protocol-relative URLs, and all `data:`/`blob:` URLs are
 rejected, including image data URLs DOMPurify might otherwise retain.

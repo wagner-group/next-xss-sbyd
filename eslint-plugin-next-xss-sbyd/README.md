@@ -67,7 +67,10 @@ verifies `jsxImportSource: "next-xss-sbyd"`; the runtime then verifies `SafeHtml
 URL attributes on built-in elements, including attributes from spreads, regardless
 of their static type. The standalone navigation rule can still
 catch obviously dangerous literals, but the recommended preset relies on runtime
-validation and does not require passive URL brands.
+validation. Passive URLs are ordinary strings and share `validateUrl`'s policy:
+root-relative, HTTP(S), and validated `mailto:`/`tel:` URLs. External form targets
+pass URL validation; CSP `form-action` independently restricts submissions.
+`TrustedScriptUrl` remains required for active resources.
 
 `no-unsafe-html-response` accepts a `customServerFiles` list of normalized path
 suffixes for nonstandard server entry points. It assumes the application calls `installResponseGuard()` at startup. There is no

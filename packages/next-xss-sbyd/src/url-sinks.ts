@@ -1,21 +1,21 @@
 import type {TrustedScriptUrl} from "./trusted-script-url.js";
 import {unwrapResourceUrl} from "./internal/unwrap.js";
-import {formActionUrl, navigationUrl, resourceUrl} from "./url.js";
+import {validateUrl} from "./url.js";
 
 type Props = Record<string, unknown>;
 type UrlValidator = (value: string) => string;
 
-const PASSIVE_URL_PROPS: Readonly<Record<string, Readonly<Record<string, UrlValidator>>>> = {
-  a: {href: navigationUrl},
-  area: {href: navigationUrl},
-  audio: {src: resourceUrl},
-  button: {formAction: formActionUrl},
-  form: {action: formActionUrl},
-  img: {src: resourceUrl},
-  input: {src: resourceUrl, formAction: formActionUrl},
-  source: {src: resourceUrl},
-  track: {src: resourceUrl},
-  video: {src: resourceUrl, poster: resourceUrl},
+const PASSIVE_URL_PROPS: Readonly<Record<string, readonly string[]>> = {
+  a: ["href"],
+  area: ["href"],
+  audio: ["src"],
+  button: ["formAction"],
+  form: ["action"],
+  img: ["src"],
+  input: ["src", "formAction"],
+  source: ["src"],
+  track: ["src"],
+  video: ["src", "poster"],
 };
 
 const ACTIVE_SRC_TAGS = new Set(["embed", "frame", "iframe", "script"]);
@@ -54,7 +54,7 @@ function validateSrcSet(value: string): string {
     if (descriptor !== "" && !/^(?:[1-9][0-9]*w|(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)x)$/u.test(descriptor)) {
       throw new TypeError(`Invalid srcSet: ${JSON.stringify(value)}`);
     }
-    candidates.push(`${resourceUrl(rawUrl)}${descriptor === "" ? "" : ` ${descriptor}`}`);
+    candidates.push(`${validateUrl(rawUrl)}${descriptor === "" ? "" : ` ${descriptor}`}`);
   }
   if (candidates.length === 0) throw new TypeError(`Invalid srcSet: ${JSON.stringify(value)}`);
   return candidates.join(", ");
@@ -74,7 +74,7 @@ function validateStringProps(props: Props, name: string, validator: UrlValidator
   for (const actualName of matchingPropNames(props, name)) {
     const value = props[actualName];
     if (value === undefined || value === null) continue;
-    if (typeof value === "function" && validator === formActionUrl) continue;
+    if (typeof value === "function" && (name === "action" || name === "formAction")) continue;
     if (typeof value !== "string") throw new TypeError(`${name} requires a string value`);
     props = withValue(props, actualName, validator(value));
   }
@@ -118,7 +118,7 @@ export function validateIntrinsicUrlProps(type: string, originalProps: Props): P
   let props = originalProps;
   const passive = PASSIVE_URL_PROPS[tag];
   if (passive !== undefined) {
-    for (const [name, validator] of Object.entries(passive)) props = validateStringProps(props, name, validator);
+    for (const name of passive) props = validateStringProps(props, name, validateUrl);
   }
   if (tag === "img" || tag === "source") {
     props = validateStringProps(props, "srcSet", validateSrcSet);
@@ -137,7 +137,7 @@ export function validateIntrinsicUrlProps(type: string, originalProps: Props): P
 
 /** Validates a Next Link URL string or its pathname-bearing UrlObject form. */
 export function validateNavigationTarget<T>(target: T): T {
-  if (typeof target === "string") return navigationUrl(target) as T;
+  if (typeof target === "string") return validateUrl(target) as T;
   if (target !== null && typeof target === "object") {
     for (const field of UNSAFE_URL_OBJECT_FIELDS) {
       if ((target as Record<string, unknown>)[field] !== undefined && (target as Record<string, unknown>)[field] !== null) {
@@ -145,17 +145,17 @@ export function validateNavigationTarget<T>(target: T): T {
       }
     }
     const pathname = (target as {pathname?: unknown}).pathname;
-    if (typeof pathname === "string") return {...target, pathname: navigationUrl(pathname)};
+    if (typeof pathname === "string") return {...target, pathname: validateUrl(pathname)};
   }
   return target;
 }
 
 /** Validates a string form action while preserving server-action functions. */
 export function validateFormTarget<T>(target: T): T {
-  return typeof target === "string" ? formActionUrl(target) as T : target;
+  return typeof target === "string" ? validateUrl(target) as T : target;
 }
 
 /** Validates a string image source while preserving trusted StaticImport objects. */
 export function validateImageSource<T>(source: T): T {
-  return typeof source === "string" ? resourceUrl(source) as T : source;
+  return typeof source === "string" ? validateUrl(source) as T : source;
 }

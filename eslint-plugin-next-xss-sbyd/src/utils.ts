@@ -231,11 +231,8 @@ export function typeAt<MessageIds extends string, Options extends readonly unkno
 const SAFE_BRAND_MARKERS: Readonly<Record<string, string>> = {
   CspNonce: "cspNonceBrand",
   PassiveResponse: "passiveResponseBrand",
-  SafeFormActionUrl: "formActionUrlBrand",
   SafeHtml: "privateDoNotAccessOrElseWrappedHtml",
-  SafeNavigationUrl: "navigationUrlBrand",
   SafeNodeStream: "safeNodeStreamBrand",
-  SafeResourceUrl: "resourceUrlBrand",
   SafeScript: "privateDoNotAccessOrElseWrappedScript",
   SafeStream: "safeStreamBrand",
   SafeStyleSheet: "privateDoNotAccessOrElseWrappedStyleSheet",

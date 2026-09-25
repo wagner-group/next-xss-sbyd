@@ -77,8 +77,8 @@ this task-boundary policy is tested in the browser matrix below, not a guarantee
 about every browser or external download manager. Do not revoke before the user
 initiates a download that still needs the URL.
 
-Ordinary navigation/resource validators still reject every `blob:` string. The
-handle is not a TrustedResourceUrl. There are no iframe, script, object or embed
+`validateUrl` and `validateUrlOrNull` still reject every `blob:` string. The
+handle is not a `TrustedScriptUrl`. There are no iframe, script, object or embed
 adapters. The adapters accept only their documented props and do not forward
 arbitrary attributes. The recommended ESLint preset rejects native creation,
 including references passed as callbacks, typed aliases, destructuring, reflective

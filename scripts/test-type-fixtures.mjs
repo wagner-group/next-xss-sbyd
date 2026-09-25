@@ -27,8 +27,6 @@ if (failing.status === 0) {
 const diagnostics = failing.stdout + failing.stderr;
 for (const type of [
   "SafeHtml",
-  "SafeNavigationUrl",
-  "SafeResourceUrl",
   "SafeScript",
   "SafeStyleSheet",
   "TrustedResourceUrl",
@@ -36,6 +34,9 @@ for (const type of [
   if (!diagnostics.includes(type)) {
     throw new Error(`Compile-fail fixture did not reject ${type}`);
   }
+}
+if (!diagnostics.includes("Type 'string | null' is not assignable to type 'string'")) {
+  throw new Error("Compile-fail fixture did not reject unchecked nullable URLs");
 }
 if (!diagnostics.includes("configureJsxGuard")) {
   throw new Error("Compile-fail fixture did not reject the removed JSX guard configuration API");

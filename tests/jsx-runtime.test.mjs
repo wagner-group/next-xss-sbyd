@@ -43,8 +43,8 @@ test("passive URL sinks fail closed for direct props and resolved spreads", () =
     ["a", {href: "javascript:alert(1)"}],
     ["img", {src: "data:text/html,<script>alert(1)</script>"}],
     ["img", {srcSet: "/safe.png 1x, javascript:alert(1) 2x"}],
-    ["form", {action: "https://evil.example/submit"}],
-  ]) assert.throws(() => jsx(type, props), /Invalid .* URL|Invalid srcSet/u);
+    ["form", {action: "javascript:alert(1)"}],
+  ]) assert.throws(() => jsx(type, props), /Invalid URL|Invalid srcSet/u);
 });
 
 test("active-content sinks unwrap only authentic TrustedScriptUrl values", () => {
@@ -117,7 +117,7 @@ test("root createElement applies the same validation and preserves children", ()
     renderToStaticMarkup(createElement("a", {href: "/one/../two"}, "two")),
     '<a href="/two">two</a>',
   );
-  assert.throws(() => createElement("img", {src: "javascript:alert(1)"}), /resource URL/u);
+  assert.throws(() => createElement("img", {src: "javascript:alert(1)"}), /Invalid URL/u);
   assert.equal(renderToStaticMarkup(createElement("section", null, "plain")), renderToStaticMarkup(reactCreateElement("section", null, "plain")));
 });
 
@@ -228,13 +228,13 @@ test("compat Next components validate strings and preserve StaticImport objects"
   assert.equal(renderToStaticMarkup(reactCreateElement(Link, {href: "/one/../two"}, "two")), '<a href="/two">two</a>');
   assert.match(renderToStaticMarkup(reactCreateElement(Image, {src: "/one/../avatar.png", alt: "", width: 16, height: 16})), /src="\/_next\/image\?url=%2Favatar.png/u);
   assert.equal(renderToStaticMarkup(reactCreateElement(Form, {action: "/one/../save"}, "save")), '<form action="/save">save</form>');
-  assert.throws(() => renderToStaticMarkup(reactCreateElement(Link, {href: "javascript:alert(1)"}, "bad")), /navigation URL/u);
-  assert.throws(() => renderToStaticMarkup(reactCreateElement(Image, {src: "data:text/html,bad", alt: "", width: 16, height: 16})), /resource URL/u);
+  assert.throws(() => renderToStaticMarkup(reactCreateElement(Link, {href: "javascript:alert(1)"}, "bad")), /Invalid URL/u);
+  assert.throws(() => renderToStaticMarkup(reactCreateElement(Image, {src: "data:text/html,bad", alt: "", width: 16, height: 16})), /Invalid URL/u);
   const staticImport = {src: "/static.png", width: 16, height: 16};
   assert.doesNotThrow(() => renderToStaticMarkup(reactCreateElement(Image, {src: staticImport, alt: ""})));
   const href = {pathname: "/one/../two", query: {q: "javascript:alert(1)"}, hash: "section"};
   assert.match(renderToStaticMarkup(reactCreateElement(Link, {href}, "object")), /href="\/two\?q=javascript%3Aalert%281%29#section"/u);
-  assert.throws(() => renderToStaticMarkup(reactCreateElement(Link, {href: {pathname: "javascript:alert(1)"}}, "bad")), /navigation URL/u);
+  assert.throws(() => renderToStaticMarkup(reactCreateElement(Link, {href: {pathname: "javascript:alert(1)"}}, "bad")), /Invalid URL/u);
   assert.throws(() => renderToStaticMarkup(reactCreateElement(Link, {href: {protocol: "javascript:", pathname: "/alert(1)"}}, "bad")), /protocol is not allowed/u);
   assert.throws(() => renderToStaticMarkup(reactCreateElement(Link, {href: {hostname: "evil.example", pathname: "/login"}}, "bad")), /hostname is not allowed/u);
 });

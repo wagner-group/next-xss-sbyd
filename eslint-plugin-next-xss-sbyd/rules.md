@@ -206,8 +206,10 @@ validating JSX runtime to inspect the final merged props.
 
 Replace dangerous literals with root-relative or HTTP(S) destinations;
 for example, `<a href="/account">Account</a>`. Use a button with an event handler
-for an action rather than a JavaScript URL. Forms must also meet the runtime's
-same-origin policy. A URL check validates the address, not the fetched content.
+for an action rather than a JavaScript URL. All passive sinks share `validateUrl`'s
+root-relative, HTTP(S), and validated `mailto:`/`tel:` policy. External form targets
+pass URL validation; CSP `form-action` independently restricts submissions.
+A URL check validates the address, not the fetched content.
 This literal check cannot establish that a dynamic URL is safe
 and does not replace runtime validation.
 
