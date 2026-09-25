@@ -37,6 +37,12 @@ text and attribute APIs, validate message origins, and avoid DOM sinks that pars
 strings. CSP can limit some exploit paths, but a policy that authorizes the executing
 client script does not make that script's DOM operations safe.
 
+The optional [checked object-URL API](object-url.md) supports browser PNG/JPEG/GIF
+previews and downloads with explicit ownership and revocation. MIME labels do not
+validate bytes, and downloaded files can be unsafe when opened externally. This
+capability does not make ordinary `blob:` strings valid URL inputs or permit active
+resource embedding.
+
 ## JSX is conditional, not automatically safe
 
 This package's validating JSX runtime checks HTML attributes as needed to prevent

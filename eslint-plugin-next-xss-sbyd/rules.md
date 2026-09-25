@@ -313,6 +313,20 @@ meaningful type and validate it; casting through `unknown` or `any` is not a rep
 Restricted conversions require a separate, documented review of the producer and
 every place that consumes its output.
 
+## no-object-url
+
+Reports calls to native `URL.createObjectURL`, including local aliases,
+destructuring, global-qualified access and statically resolvable computed members.
+TypeScript declaration identity distinguishes native methods from unrelated
+user-defined methods and shadowed `URL` bindings. Type services are required.
+Dynamic access erased to `any` and reflective invocation cannot always be resolved.
+
+Use `createPassiveObjectUrl` from `next-xss-sbyd/object-url` and the matching
+download or preview adapter. A `MediaSource` workflow needs its own reviewed
+exception; casting it to `Blob` does not make it safe. The rule has no filename
+exemptions. The package's native implementation call may use a narrowly scoped,
+justified disable, like other reviewed exceptions.
+
 ## require-disable-justification
 
 Rejects unlimited `eslint-disable` directives and `xss-sbyd/*` disables without a

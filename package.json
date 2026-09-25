@@ -9,7 +9,7 @@
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
-    "check": "npm run typecheck && npm run test:runtime && npm run test:eslint && npm run test:types && npm run test:duplicate && npm run test:compat && npm run test:sanitize-browser",
+    "check": "npm run typecheck && npm run test:runtime && npm run test:eslint && npm run test:types && npm run test:duplicate && npm run test:compat && npm run test:sanitize-browser && npm run test:object-url-browser",
     "test:compat": "npm run build && node scripts/test-compatibility.mjs",
     "test:duplicate": "node scripts/test-duplicate-safevalues.mjs",
     "test:runtime": "npm run build && node --test tests/*.test.mjs",
@@ -17,7 +17,8 @@
     "test:types": "node scripts/test-type-fixtures.mjs",
     "typecheck": "tsc -b",
     "test:passive-browser": "npm run build && node scripts/test-passive-content-browser.mjs",
-    "test:sanitize-browser": "npm run build && node scripts/test-sanitize-browser.mjs"
+    "test:sanitize-browser": "npm run build && node scripts/test-sanitize-browser.mjs",
+    "test:object-url-browser": "npm run build && node scripts/test-object-url-browser.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.4.1",
