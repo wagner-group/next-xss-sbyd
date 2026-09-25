@@ -56,7 +56,7 @@ The `next-xss-sbyd` extension provides:
   replaces Node's global `Response` constructor to reject unchecked HTML strings.
 - A validating JSX runtime that checks HTML attributes on built-in elements after
   merging JSX spreads (`{...props}`). It verifies `SafeHtml` objects for raw HTML,
-  validates passive URLs, and verifies `TrustedResourceUrl` objects for active
+  validates passive URLs, and verifies `TrustedScriptUrl` objects for active
   resources. This package also validates Next.js component URLs through `next-xss-sbyd/compat/link`,
   `next-xss-sbyd/compat/image`, and `next-xss-sbyd/compat/form`.
 - `PassiveObjectUrlPreview` and `PassiveObjectUrlDownload` from
@@ -76,7 +76,7 @@ Configure `"jsxImportSource": "next-xss-sbyd"` in `tsconfig.json` and redirect
 `next-xss-sbyd/compat/*` exports in both Turbopack and webpack. See the new-code and
 retrofit guides for complete configuration. Passive URL props on built-in elements
 and these Next.js components may then remain ordinary strings: the runtime validates them and always throws on invalid input. Active-content
-sinks still require a `TrustedResourceUrl` object created by this package. Raw
+sinks still require a `TrustedScriptUrl` object created by this package. Raw
 `dangerously*` and `srcDoc` props on built-in elements require a `SafeHtml` object
 created by this package, including through spreads.
 
@@ -111,6 +111,11 @@ and visible `<mark>` wrappers. There is no policy argument. Sanitized content ca
 resources; configure CSP image/media destinations for your application. Edge and workers
 without a DOM are unsupported. See the [API and highlight recipes](docs/sanitize.md)
 and [migration release notes](docs/releases.md).
+
+For ordinary untrusted Markdown, use `SafeMarkdown` from `next-xss-sbyd/markdown`.
+It accepts only source text and uses a fixed CommonMark policy in Node, browsers and
+Edge. See the [Markdown and MDX migration guide](docs/markdown.md) for existing parser
+recipes, formatting differences and the opt-in lint preset.
 
 <a id="configure-the-response-guard"></a>
 
@@ -330,6 +335,10 @@ data is XSS-safe, but this package's built-in APIs cannot recognize its safety. 
 example, the expert may have reviewed an application-specific sanitizer. Restricted
 APIs mark the data as reviewed and create a safe value accepted by the runtime.
 They do not sanitize the data themselves.
+
+`TrustedScriptUrl` and its template builder `trustedScriptUrl` mark URLs whose
+JavaScript is trusted to execute. They use the existing SafeValues runtime brand.
+Active iframe and other resource sinks continue to require this same trust.
 
 ## Duplicate SafeValues installations
 

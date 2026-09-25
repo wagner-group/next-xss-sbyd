@@ -1,5 +1,8 @@
 # Sanitizing formatted HTML
 
+For Markdown, use [`SafeMarkdown` or the final-HTML migration recipe](markdown.md).
+MDX is executable application code and has a separate trust boundary.
+
 Use `sanitizeUserHtml` to display untrusted HTML while preserving permitted
 formatting, images, and media. It removes disallowed markup and returns `SafeHtml`.
 Pass that value to `SafeBlock`, which renders it in the element named by `as`:

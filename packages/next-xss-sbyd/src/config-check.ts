@@ -99,7 +99,8 @@ export async function checkLint(
           ([, plugin]) => plugin.meta?.name === "eslint-plugin-next-xss-sbyd",
         );
       const alias = pluginEntry?.[0] ?? "xss-sbyd";
-      const requiredRules = Object.assign({}, ...(pluginEntry?.[1].configs?.[presetName] ?? [])
+      const presets = [presetName, ...(project.packageJson["next-xss-sbyd"]?.markdown ? [requiredSeverity === 1 ? "markdownMigration" : "markdown"] : [])];
+      const requiredRules = Object.assign({}, ...presets.flatMap((name) => pluginEntry?.[1].configs?.[name] ?? [])
         .map((entry) => entry.rules ?? {})) as Record<string, unknown>;
       for (const [canonicalName, expected] of Object.entries(requiredRules)) {
         const ruleName = `${alias}/${canonicalName.slice(canonicalName.indexOf("/") + 1)}`;

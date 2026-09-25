@@ -11,7 +11,7 @@ import type {
   ServerOptions,
 } from "react-dom/server";
 import {htmlSafeByReview} from "safevalues/restricted/reviewed";
-import type {TrustedResourceUrl} from "safevalues";
+import type {TrustedScriptUrl} from "./trusted-script-url.js";
 import type {CspNonce} from "./csp.js";
 import {
   InternalSafeNodeStream,
@@ -23,9 +23,9 @@ import {unwrapResourceUrl} from "./internal/unwrap.js";
 export type {SafeNodeStream, SafeStream} from "./internal/stream.js";
 
 export interface SafeBootstrapScriptDescriptor extends Omit<BootstrapScriptDescriptor, "src"> {
-  readonly src: TrustedResourceUrl;
+  readonly src: TrustedScriptUrl;
 }
-export type SafeBootstrapScript = TrustedResourceUrl | SafeBootstrapScriptDescriptor;
+export type SafeBootstrapScript = TrustedScriptUrl | SafeBootstrapScriptDescriptor;
 
 export type SafeRenderOptions = ServerOptions;
 
@@ -48,7 +48,7 @@ export interface SafePipeableStreamOptions extends Omit<RenderToPipeableStreamOp
 function unwrapBootstrapScripts(scripts?: readonly SafeBootstrapScript[]): BootstrapScriptDescriptor[] | undefined {
   return scripts?.map((script) => Object.prototype.hasOwnProperty.call(script, "src")
     ? {...script as SafeBootstrapScriptDescriptor, src: unwrapResourceUrl((script as SafeBootstrapScriptDescriptor).src)}
-    : {src: unwrapResourceUrl(script as TrustedResourceUrl)});
+    : {src: unwrapResourceUrl(script as TrustedScriptUrl)});
 }
 
 /** Renders React-controlled HTML and returns it as SafeHtml. */

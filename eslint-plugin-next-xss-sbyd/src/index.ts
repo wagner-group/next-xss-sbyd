@@ -16,7 +16,14 @@ import requireSafeJsxRuntime from "./rules/require-safe-jsx-runtime.js";
 import safeJsxUrlsActive from "./rules/safe-jsx-urls-active.js";
 import safeJsxUrlsNavigation from "./rules/safe-jsx-urls-navigation.js";
 
+import markdownLoaderCoverage from "./rules/markdown-loader-coverage.js";
+import requireSafeMarkdown from "./rules/require-safe-markdown.js";
+import noUnreviewedMdxExecution from "./rules/no-unreviewed-mdx-execution.js";
+
 const rules = {
+  "markdown-loader-coverage": markdownLoaderCoverage,
+  "require-safe-markdown": requireSafeMarkdown,
+  "no-unreviewed-mdx-execution": noUnreviewedMdxExecution,
   "no-danger": noDanger,
   "no-unsafe-html-response": noUnsafeHtmlResponse,
   "no-unsafe-api-send": noUnsafeApiSend,
@@ -98,6 +105,20 @@ plugin.configs.lintMigration = plugin.configs.recommended.map((config) => {
     })),
   };
 });
+
+for (const [name, severity] of [["markdown", "error"], ["markdownMigration", "warn"]] as const) {
+  plugin.configs[name] = [{
+    name: `xss-sbyd/${name}`,
+    files: ["**/*.{js,mjs,cjs,jsx,ts,mts,cts,tsx}"],
+    languageOptions: {parser, parserOptions: {ecmaFeatures: {jsx: true}}},
+    plugins: {"xss-sbyd": plugin},
+    rules: {
+      "xss-sbyd/markdown-loader-coverage": "warn",
+      "xss-sbyd/require-safe-markdown": severity,
+      "xss-sbyd/no-unreviewed-mdx-execution": severity,
+    },
+  }];
+}
 
 export {allowDefaultProjectGlobs, rules};
 export default plugin;

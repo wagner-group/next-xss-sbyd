@@ -1,6 +1,6 @@
-import {SafeExternalIframe, SafeIframe, trustedResourceUrl} from "next-xss-sbyd";
+import {SafeExternalIframe, SafeIframe, trustedScriptUrl} from "next-xss-sbyd";
 
-const src = trustedResourceUrl`https://video.example/embed/player`;
+const src = trustedScriptUrl`https://video.example/embed/player`;
 
 <SafeExternalIframe src={src} sandbox="" title="Static document" />;
 <SafeExternalIframe src={src} sandbox="allow-scripts" title="Scripted embed" onLoad={() => undefined} />;
@@ -12,12 +12,12 @@ const src = trustedResourceUrl`https://video.example/embed/player`;
 <SafeExternalIframe src={src} sandbox="allow-scripts allow-same-origin" />;
 // @ts-expect-error SafeExternalIframe does not accept srcDoc.
 <SafeExternalIframe src={src} sandbox="" srcDoc="<p>unsafe</p>" />;
-// @ts-expect-error SafeExternalIframe requires TrustedResourceUrl rather than a string.
+// @ts-expect-error SafeExternalIframe requires TrustedScriptUrl rather than a string.
 <SafeExternalIframe src="https://video.example/embed/player" sandbox="" />;
 
 // The deprecated name retains the same JSX contract.
 <SafeIframe src={src} sandbox="" />;
-// @ts-expect-error The deprecated name still requires TrustedResourceUrl.
+// @ts-expect-error The deprecated name still requires TrustedScriptUrl.
 <SafeIframe src="https://video.example/embed/player" sandbox="" />;
 
 import {createRef} from "react";
@@ -43,3 +43,25 @@ import {SafeHtmlIframe} from "next-xss-sbyd/safe-html-iframe";
 <SafeHtmlIframe value="" title="Preview" referrerPolicy="unsafe-url" />;
 // @ts-expect-error Arbitrary native props are not forwarded.
 <SafeHtmlIframe value="" title="Preview" onLoad={() => undefined} />;
+
+
+import {SafeMarkdown} from "next-xss-sbyd/markdown";
+
+<SafeMarkdown>{"# Article"}</SafeMarkdown>;
+<SafeMarkdown children="" />;
+// @ts-expect-error Source text is required.
+<SafeMarkdown />;
+// @ts-expect-error Markdown is text, never an already-rendered React element.
+<SafeMarkdown><p>Article</p></SafeMarkdown>;
+// @ts-expect-error Only string input is accepted.
+<SafeMarkdown>{42}</SafeMarkdown>;
+// @ts-expect-error Place layout attributes on an application-owned wrapper.
+<SafeMarkdown className="prose">Article</SafeMarkdown>;
+// @ts-expect-error Raw HTML cannot be enabled.
+<SafeMarkdown skipHtml={false}>Article</SafeMarkdown>;
+// @ts-expect-error There are no caller-provided plugins.
+<SafeMarkdown rehypePlugins={[]}>Article</SafeMarkdown>;
+// @ts-expect-error Custom components cannot replace the final safety boundary.
+<SafeMarkdown components={{}}>Article</SafeMarkdown>;
+// @ts-expect-error URL validation is fixed.
+<SafeMarkdown urlTransform={(url: string) => url}>Article</SafeMarkdown>;

@@ -4,7 +4,7 @@ import type {
   SafeResourceUrl,
   SafeScript,
   SafeStyleSheet,
-  TrustedResourceUrl,
+  TrustedScriptUrl,
 } from "next-xss-sbyd";
 import {
   navigationUrlOrNull,
@@ -20,7 +20,7 @@ new SafeResponse("<img src=x onerror=alert(1)>");
 const html: SafeHtml = "<b>raw</b>";
 const script: SafeScript = "alert(1)";
 const styleSheet: SafeStyleSheet = "body{}";
-const resourceUrl: TrustedResourceUrl = "javascript:alert(1)";
+const resourceUrl: TrustedScriptUrl = "javascript:alert(1)";
 SafeScriptBlock({script: "alert(1)"});
 SafeJsonScript({id: "state", data: {bad: undefined}});
 safeRenderToReadableStream(null, {bootstrapScripts: ["/raw.js"]});

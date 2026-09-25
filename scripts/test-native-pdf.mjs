@@ -5,7 +5,7 @@ import {fileURLToPath} from "node:url";
 import {chromium} from "playwright-core";
 import {createServer} from "node:http";
 import {renderToStaticMarkup} from "react-dom/server";
-import {SafeExternalIframe, trustedResourceUrl} from "next-xss-sbyd";
+import {SafeExternalIframe, trustedScriptUrl} from "next-xss-sbyd";
 import {jsx} from "next-xss-sbyd/jsx-runtime";
 
 // A real, deterministic one-page PDF with a cross-reference table and visible text.
@@ -62,14 +62,14 @@ export async function verifyNativePdf(browser) {
   // Unsandboxed frames are browser diagnostic controls only, not an application
   // component or a supported replacement for SafeExternalIframe (issue #185, scope 4).
   const cases = [
-    {name: "native", src: trustedResourceUrl`/document.pdf`},
-    {name: "empty", src: trustedResourceUrl`/document.pdf`, sandbox: ""},
-    {name: "scripts", src: trustedResourceUrl`/document.pdf`, sandbox: "allow-scripts"},
+    {name: "native", src: trustedScriptUrl`/document.pdf`},
+    {name: "empty", src: trustedScriptUrl`/document.pdf`, sandbox: ""},
+    {name: "scripts", src: trustedScriptUrl`/document.pdf`, sandbox: "allow-scripts"},
     // Owner-approved #185 scope item 4 requires evidence that an HTML error/fallback
     // cannot execute under response sandboxing, with an executable positive control.
     // These diagnostic cases do not endorse an unsandboxed iframe application recipe.
-    {name: "html-control", src: trustedResourceUrl`/control.html`},
-    {name: "html-sandbox", src: trustedResourceUrl`/fallback.html`},
+    {name: "html-control", src: trustedScriptUrl`/control.html`},
+    {name: "html-sandbox", src: trustedScriptUrl`/fallback.html`},
   ];
   const documents = new Map(cases.map(({name, src, sandbox}) => [
     `/${name}`,

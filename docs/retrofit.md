@@ -8,6 +8,9 @@ This guide applies to TypeScript applications using Next.js 14–16 and React 18
 It covers server-rendered HTML, URL attributes, inline code, HTML responses, custom
 rendering, middleware/proxy CSP, and sanitized browser HTML display.
 
+For Markdown rendering sites, follow the [Markdown/MDX migration guide](markdown.md)
+for `SafeMarkdown`, existing HTML parsers, the optional lint preset and fidelity checks.
+
 ## 1. Install and inventory
 
 Ordinary React style props and dependency-generated attributes are allowed by the
@@ -247,7 +250,7 @@ Choose by what the browser does with the URL:
 | `a[href]`, `area[href]`, `Link[href]`           | Validate raw strings as navigation URLs          |
 | passive `src`, `srcSet`, `poster`, `Image[src]` | Validate raw strings as passive resources        |
 | `form[action]`, `formAction`, `next/form`       | Validate raw strings as same-origin form targets |
-| `script[src]`, `iframe[src]`, executable links  | Require a `TrustedResourceUrl` object from this package           |
+| `script[src]`, `iframe[src]`, executable links  | Require a `TrustedScriptUrl` object from this package           |
 
 ```tsx
 import Link from "next/link";
@@ -276,7 +279,7 @@ values introduced through spreads. Invalid URLs always throw. This package's
 `next-xss-sbyd/compat/link`, `next-xss-sbyd/compat/image`, and
 `next-xss-sbyd/compat/form` apply the same URL checks to Next.js components. Static
 `next/image` imports and function server actions pass through unchanged. Keep active resources developer-controlled and construct them with
-`trustedResourceUrl`; do not turn user or database data into a script or frame source.
+`trustedScriptUrl`; do not turn user or database data into a script or frame source.
 
 On built-in HTML elements, the JSX runtime also rejects `srcDoc` in any casing and
 every `dangerously*` attribute unless a supported HTML attribute contains a
@@ -292,16 +295,16 @@ that require another `jsxImportSource`, must retain explicit lint protection for
 spreads.
 
 Replace intrinsic iframes with `SafeExternalIframe`. This solves the mismatch between React's
-string-only iframe `src` type and the `TrustedResourceUrl` required for active content,
+string-only iframe `src` type and the `TrustedScriptUrl` required for active content,
 and adds a fixed sandbox policy:
 
 ```tsx
-import { SafeExternalIframe, trustedResourceUrl } from "next-xss-sbyd";
+import { SafeExternalIframe, trustedScriptUrl } from "next-xss-sbyd";
 
 export function ArchivedPage({ assetId }: { assetId: string }) {
   return (
     <SafeExternalIframe
-      src={trustedResourceUrl`/api/assets/${assetId}`}
+      src={trustedScriptUrl`/api/assets/${assetId}`}
       sandbox=""
       title="Archived page"
     />
@@ -327,7 +330,7 @@ open/download link; see [Native PDF viewing](caveats.md#native-pdf-viewing).
 Some active sinks do not have a typed JSX carrier. Migrate them as follows:
 
 - Replace `script[src]` with a normal application bundle when possible. For
-  bootstrap files (browser code that starts the rendered page), pass `TrustedResourceUrl` values to `safeRenderTo*()`.
+  bootstrap files (browser code that starts the rendered page), pass `TrustedScriptUrl` values to `safeRenderTo*()`.
   Use `SafeScriptBlock` only for small,
   reviewed literal inline code; it is not a replacement for a dynamic external URL.
 - Let Next.js manage stylesheet links. Other executable `link[href]` uses remain
@@ -339,7 +342,7 @@ Some active sinks do not have a typed JSX carrier. Migrate them as follows:
   application-owned JSX when possible.
 
 The active-URL lint rule checks intrinsic elements, not `SafeExternalIframe`; the component's
-prop type requires `TrustedResourceUrl`, and its runtime checks verify the object
+prop type requires `TrustedScriptUrl`, and its runtime checks verify the object
 was created by this package.
 
 Encode dynamic data as data, not URL syntax:
@@ -656,14 +659,14 @@ types: the absent methods detect a missing integration before HTML can be emitte
 For Web streaming:
 
 ```tsx
-import { SafeResponse, trustedResourceUrl } from "next-xss-sbyd";
+import { SafeResponse, trustedScriptUrl } from "next-xss-sbyd";
 import { safeRenderToReadableStream } from "next-xss-sbyd/render";
 
 const stream = await safeRenderToReadableStream(
   <html>
     <body>...</body>
   </html>,
-  { bootstrapScripts: [trustedResourceUrl`/client.js`] },
+  { bootstrapScripts: [trustedScriptUrl`/client.js`] },
 );
 return new SafeResponse(stream);
 ```
@@ -671,7 +674,7 @@ return new SafeResponse(stream);
 Do not concatenate, transform, or manually write chunks around these streams: the wrappers
 expose no API for editing React's output.
 Their safety depends on one React renderer owning the complete parse context.
-Bootstrap script and module locations use `TrustedResourceUrl` so only literal,
+Bootstrap script and module locations use `TrustedScriptUrl` so only literal,
 developer-controlled active-resource URLs reach the renderer.
 
 The explicit safe response APIs are documented in the

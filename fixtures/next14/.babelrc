@@ -6,6 +6,14 @@
         "preset-react": {
           "runtime": "automatic",
           "importSource": "next-xss-sbyd"
+        },
+        "preset-env": {
+          "targets": {
+            "chrome": "90",
+            "edge": "90",
+            "firefox": "90",
+            "safari": "14"
+          }
         }
       }
     ]
