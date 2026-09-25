@@ -1,14 +1,8 @@
 import {sanitizeUrl} from "@braintree/sanitize-url";
 
-declare const navigationUrlBrand: unique symbol;
-declare const resourceUrlBrand: unique symbol;
-declare const formActionUrlBrand: unique symbol;
 declare const pathSegmentBrand: unique symbol;
 declare const queryValueBrand: unique symbol;
 
-export type SafeNavigationUrl = string & {readonly [navigationUrlBrand]: true};
-export type SafeResourceUrl = string & {readonly [resourceUrlBrand]: true};
-export type SafeFormActionUrl = string & {readonly [formActionUrlBrand]: true};
 export type PathSegment = string & {readonly [pathSegmentBrand]: true};
 export type QueryValue = string & {readonly [queryValueBrand]: true};
 
@@ -22,16 +16,7 @@ function invalid(kind: string, value: string): Error {
   return new InvalidUrlError(`Invalid ${kind}: ${JSON.stringify(value)}`);
 }
 
-function buildOrNull<T extends string>(build: (value: string) => T, value: string): T | null {
-  try {
-    return build(value);
-  } catch (error) {
-    if (!(error instanceof InvalidUrlError)) throw error;
-    return null;
-  }
-}
-
-function parseHttpUrl(value: string, kind: string): URL {
+function parseUrl(value: string, kind: string): URL {
   if (value === "" || FORBIDDEN_CHARACTERS.test(value) || value.startsWith("//")) {
     throw invalid(kind, value);
   }
@@ -53,7 +38,7 @@ function canonicalRelative(parsed: URL, original: string, kind: string): string 
   return result;
 }
 
-function validateNavigationScheme(parsed: URL, value: string, kind: string): void {
+function validateContactScheme(parsed: URL, value: string, kind: string): void {
   let decoded: string;
   try {
     decoded = decodeURIComponent(value);
@@ -70,10 +55,14 @@ function validateNavigationScheme(parsed: URL, value: string, kind: string): voi
   }
 }
 
-/** Validates and canonicalizes a URL used for user navigation. */
-export function navigationUrl(value: string): SafeNavigationUrl {
-  const kind = "navigation URL";
-  const parsed = parseHttpUrl(value, kind);
+/**
+ * Validates and canonicalizes a passive URL as an ordinary string.
+ * Accepts root-relative paths, HTTP(S), mailto, and tel URLs; throws on invalid input.
+ * This checks URL syntax and schemes, not destination trust or permission to load code.
+ */
+export function validateUrl(value: string): string {
+  const kind = "URL";
+  const parsed = parseUrl(value, kind);
   let result: string;
   if (parsed.origin === PARSE_ORIGIN) {
     result = canonicalRelative(parsed, value, kind);
@@ -83,40 +72,22 @@ export function navigationUrl(value: string): SafeNavigationUrl {
     if (!value.toLowerCase().startsWith(parsed.protocol) || parsed.pathname === "") {
       throw invalid(kind, value);
     }
-    validateNavigationScheme(parsed, value, kind);
+    validateContactScheme(parsed, value, kind);
     result = parsed.href;
   } else {
     throw invalid(kind, value);
   }
-  return result as SafeNavigationUrl;
+  return result;
 }
 
-/** Returns a safe navigation URL, or `null` when validation fails. */
-export function navigationUrlOrNull(value: string): SafeNavigationUrl | null {
-  return buildOrNull(navigationUrl, value);
-}
-
-/** Validates and canonicalizes a URL used for passive resource loading. */
-export function resourceUrl(value: string): SafeResourceUrl {
-  const kind = "resource URL";
-  const parsed = parseHttpUrl(value, kind);
-  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") throw invalid(kind, value);
-  const result = parsed.origin === PARSE_ORIGIN
-    ? canonicalRelative(parsed, value, kind)
-    : parsed.href;
-  return result as SafeResourceUrl;
-}
-
-/** Returns a safe passive-resource URL, or `null` when validation fails. */
-export function resourceUrlOrNull(value: string): SafeResourceUrl | null {
-  return buildOrNull(resourceUrl, value);
-}
-
-/** Validates a same-origin, root-relative form submission target. */
-export function formActionUrl(value: string): SafeFormActionUrl {
-  const kind = "form action URL";
-  const parsed = parseHttpUrl(value, kind);
-  return canonicalRelative(parsed, value, kind) as SafeFormActionUrl;
+/** Returns a canonical URL, or `null` for invalid URL strings; caller type errors still throw. */
+export function validateUrlOrNull(value: string): string | null {
+  try {
+    return validateUrl(value);
+  } catch (error) {
+    if (!(error instanceof InvalidUrlError)) throw error;
+    return null;
+  }
 }
 
 /** Encodes untrusted text as one opaque URL path segment. */
@@ -139,28 +110,28 @@ function joinPath(base: string, segment: PathSegment, suffix: string): string {
   return `${base}${separator}${segment}${suffix}`;
 }
 
-/** Builds a navigation URL with an encoded dynamic path segment. */
-export function relativePath(base: string, segment: PathSegment): SafeNavigationUrl {
-  return navigationUrl(joinPath(base, segment, ""));
+/** Builds a root-relative URL with an encoded dynamic path segment. */
+export function relativePath(base: string, segment: PathSegment): string {
+  return validateUrl(joinPath(base, segment, ""));
 }
 
 /** Builds a passive-resource URL with an encoded path segment and literal suffix. */
-export function relativeResourcePath(base: string, segment: PathSegment, suffix = ""): SafeResourceUrl {
+export function relativeResourcePath(base: string, segment: PathSegment, suffix = ""): string {
   if (suffix !== "" && !/^\.[A-Za-z0-9._-]+$/.test(suffix)) {
     throw invalid("resource path suffix", suffix);
   }
-  return resourceUrl(joinPath(base, segment, suffix));
+  return validateUrl(joinPath(base, segment, suffix));
 }
 
-/** Replaces the query string on a safe navigation URL using encoded values. */
+/** Validates a URL and replaces its query string using encoded values. */
 export function withQuery(
-  url: SafeNavigationUrl,
+  url: string,
   values: Readonly<Record<string, QueryValue>>,
-): SafeNavigationUrl {
-  const parsed = new URL(url, PARSE_BASE);
+): string {
+  const parsed = new URL(validateUrl(url), PARSE_BASE);
   parsed.search = new URLSearchParams(values).toString();
   const candidate = parsed.origin === PARSE_ORIGIN
     ? `${parsed.pathname}${parsed.search}${parsed.hash}`
     : parsed.href;
-  return navigationUrl(candidate);
+  return validateUrl(candidate);
 }

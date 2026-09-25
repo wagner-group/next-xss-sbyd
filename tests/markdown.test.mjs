@@ -34,7 +34,7 @@ test('SafeMarkdown renders CommonMark formatting and only approved attributes', 
   assert.match(render('999999999. last'), /start="999999999"/);
 });
 
-test('SafeMarkdown validates parsed navigation/resource URLs and preserves useful fallback text', () => {
+test('SafeMarkdown validates parsed passive URLs and preserves useful fallback text', () => {
   const document = documentFor('[root](/docs "title") [secure](https://example.com) [mail](mailto:a@example.com) [phone](tel:+123) ![safe](/pixel.png "photo")');
   assert.deepEqual([...document.querySelectorAll('a')].map(a => a.getAttribute('href')), ['/docs', 'https://example.com/', 'mailto:a@example.com', 'tel:+123']);
   for (const a of document.querySelectorAll('a')) assert.equal(a.rel, 'nofollow noopener noreferrer');
@@ -50,7 +50,29 @@ test('SafeMarkdown validates parsed navigation/resource URLs and preserves usefu
     assert.equal(unsafe.querySelector('strong').textContent, 'readable', url);
     assert.match(unsafe.body.textContent, /fallback/, url);
   }
-  assert.equal(documentFor('![mail](mailto:a@example.com)').querySelector('img'), null);
+  for (const [url, expected] of [
+    ['/a/../image.png', '/image.png'],
+    ['https://Example.COM:443/image.png', 'https://example.com/image.png'],
+    ['http://example.com/image.png', 'http://example.com/image.png'],
+  ]) {
+    const accepted = documentFor(`[link](${url}) ![image](${url})`);
+    assert.equal(accepted.querySelector('a').getAttribute('href'), expected, url);
+    assert.equal(accepted.querySelector('img').getAttribute('src'), expected, url);
+  }
+  for (const url of ['mailto:', 'mailto:a%0Ab@example.com', 'tel:abc', 'tel:+123%0A']) {
+    const rejected = documentFor(`[link](${url}) ![fallback](${url})`);
+    assert.equal(rejected.querySelector('a, img'), null, url);
+    assert.match(rejected.body.textContent, /link.*fallback/, url);
+  }
+});
+
+test('SafeMarkdown keeps contact links but renders contact images as fallback text without preloads', () => {
+  for (const url of ['mailto:a@example.com', 'tel:+123']) {
+    const document = documentFor(`[contact](${url}) ![fallback](${url})`);
+    assert.equal(document.querySelector('a').getAttribute('href'), url, url);
+    assert.equal(document.querySelector('img, link[rel="preload"]'), null, url);
+    assert.match(document.body.textContent, /contact.*fallback/, url);
+  }
 });
 
 test('SafeMarkdown ignores raw HTML and treats MDX as data', () => {

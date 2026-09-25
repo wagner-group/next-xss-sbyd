@@ -324,13 +324,14 @@ URLs against the original article URL before final sanitization. Saved inline im
 need reviewed serving/upload code or a separately reviewed custom sanitizer. The
 [API guide](sanitize.md) explains the remaining fidelity and transport limits.
 
-The URL functions `navigationUrl`, `resourceUrl`, and `formActionUrl` reject dangerous
-URLs such as `javascript:` URLs. Each returns a different safe type to record that the
-URL passed the checks for navigation, resource loading, or form submission. These
-TypeScript types are called brands. They prevent accidentally using an unchecked URL
-where an API requires a checked one. The JSX runtime also validates URL strings at
-runtime. These checks do not prevent phishing, open redirects, privacy leaks, unwanted
-navigation, server-side request forgery, or authorization bugs.
+`validateUrl` and `validateUrlOrNull` reject dangerous URLs such as `javascript:`
+and return ordinary strings for accepted input. Navigation, passive resources, and
+form targets share the same root-relative, HTTP(S), and validated `mailto:`/`tel:`
+policy. The JSX runtime validates passive URL strings at each sink. External form
+targets pass URL validation; CSP `form-action` independently limits submissions.
+These checks do not prevent phishing, open redirects, privacy leaks, unwanted
+navigation, server-side request forgery, or authorization bugs. They also do not
+establish that a URL will work as an image, media resource, or form destination.
 
 For scripts and frames, `trustedScriptUrl` creates a runtime-checked object that
 identifies a developer-controlled URL. Developers must review the referenced content.

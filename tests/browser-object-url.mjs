@@ -3,7 +3,7 @@ import {createRoot, hydrateRoot} from 'react-dom/client';
 import {renderToString} from 'react-dom/server.browser';
 import {flushSync} from 'react-dom';
 import * as api from 'next-xss-sbyd/object-url';
-import {navigationUrl, resourceUrl} from 'next-xss-sbyd';
+import {validateUrl} from 'next-xss-sbyd';
 import {jsx} from 'next-xss-sbyd/jsx-runtime';
 window.api = api;
 window.reactVersion = React.version;
@@ -34,8 +34,7 @@ window.contract = async function contract() {
     window.rejects(() => revoke(forged));
     if (typeof forged === 'string' && forged !== handle.url && forged.startsWith('blob:')) URL.revokeObjectURL(forged);
   }
-  window.rejects(() => navigationUrl(handle.url));
-  window.rejects(() => resourceUrl(handle.url));
+  window.rejects(() => validateUrl(handle.url));
   window.rejects(() => preview(document.createElement('img'), handle));
   window.rejects(() => download(document.createElement('iframe'), handle, 'x'));
   for (const name of ['', null, 42]) window.rejects(() => download(anchor, handle, name));

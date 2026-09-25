@@ -2,84 +2,62 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  formActionUrl,
-  navigationUrl,
-  navigationUrlOrNull,
+  validateUrl,
+  validateUrlOrNull,
   pathSegment,
   queryValue,
   relativePath,
   relativeResourcePath,
-  resourceUrl,
-  resourceUrlOrNull,
   withQuery,
 } from "next-xss-sbyd";
 
-test("navigation URLs canonicalize allowed schemes and root-relative paths", () => {
-  assert.equal(navigationUrl("/a/../b?q=1#two"), "/b?q=1#two");
-  assert.equal(navigationUrl("HTTPS://Example.COM:443/a"), "https://example.com/a");
-  assert.equal(navigationUrl("mailto:user@example.com"), "mailto:user@example.com");
-  assert.equal(navigationUrl("tel:+1-510-555-0100"), "tel:+1-510-555-0100");
+test("URLs canonicalize the shared allowlist and root-relative paths", () => {
+  for (const [input, expected] of [
+    ["/a/../b?q=1#two", "/b?q=1#two"],
+    ["HTTPS://Example.COM:443/a", "https://example.com/a"],
+    ["http://EXAMPLE.test:80/submit", "http://example.test/submit"],
+    ["mailto:user@example.com", "mailto:user@example.com"],
+    ["tel:+1-510-555-0100", "tel:+1-510-555-0100"],
+    ["/%6a%61vascript:alert(1)", "/%6a%61vascript:alert(1)"],
+  ]) {
+    assert.equal(validateUrl(input), expected, input);
+    assert.equal(validateUrlOrNull(input), expected, input);
+  }
 });
 
-test("navigation URL validation rejects ambiguous and executable inputs", () => {
+test("URL validation rejects ambiguous and executable inputs", () => {
   for (const value of [
+    "",
+    "https://[invalid",
+    "https://example.test:bad",
+    "mailto:",
+    "tel:",
     "javascript:alert(1)",
     "JaVaScRiPt:alert(1)",
     "java\u0009script:alert(1)",
     "\\\\evil.test/x",
     "//evil.test/x",
     "https://user:pass@example.test/",
+    "https://user@example.test/a.png",
     "data:text/html,<script>alert(1)</script>",
+    "data:image/png;base64,AAAA",
     "blob:https://example.test/id",
     "mailto:user%0a@example.test",
     "mailto://evil.test/path",
     "tel:alert(1)",
     "mailto:%E0%A4%A",
     "relative/path",
-  ]) {
-    assert.throws(() => navigationUrl(value), /navigation URL/i, value);
-    assert.equal(navigationUrlOrNull(value), null, value);
-  }
-  assert.equal(navigationUrl("/%6a%61vascript:alert(1)"), "/%6a%61vascript:alert(1)");
-});
-
-test("resource URLs allow only passive HTTP(S) and root-relative resources", () => {
-  assert.equal(resourceUrl("/images/../avatar.png"), "/avatar.png");
-  assert.equal(resourceUrl("https://EXAMPLE.test:443/a.png"), "https://example.test/a.png");
-  assert.equal(resourceUrlOrNull("/images/../avatar.png"), "/avatar.png");
-  assert.equal(resourceUrlOrNull("https://EXAMPLE.test:443/a.png"), "https://example.test/a.png");
-  for (const value of [
-    "mailto:user@example.test",
-    "tel:+15550100",
-    "data:image/png;base64,AAAA",
-    "blob:https://example.test/id",
-    "//cdn.example.test/a.js",
-    "https://user@example.test/a.png",
-    "\\evil.test\\a.png",
-  ]) {
-    assert.throws(() => resourceUrl(value), /resource URL/i, value);
-    assert.equal(resourceUrlOrNull(value), null, value);
-  }
-});
-
-test("form actions are same-origin root-relative URLs", () => {
-  assert.equal(formActionUrl("/submit/../account?save=1"), "/account?save=1");
-  for (const value of [
-    "https://example.test/submit",
-    "//example.test/submit",
-    "submit",
     "/ok\\bad",
     "/safe/..//evil.example/collect",
     "/safe/%2e%2e//evil.example/collect",
   ]) {
-    assert.throws(() => formActionUrl(value), /form action URL/i, value);
+    assert.throws(() => validateUrl(value), /Invalid URL/i, value);
+    assert.equal(validateUrlOrNull(value), null, value);
   }
 });
 
-test("nullable URL builders do not hide caller programming errors", () => {
-  for (const build of [navigationUrlOrNull, resourceUrlOrNull]) {
-    assert.throws(() => build(null), TypeError, build.name);
-  }
+test("nullable URL validation does not hide caller programming errors", () => {
+  assert.throws(() => validateUrlOrNull(null), TypeError);
 });
 
 test("path and query interpolation cannot become URL syntax", () => {
@@ -94,11 +72,33 @@ test("path and query interpolation cannot become URL syntax", () => {
     "/things/..%2Fadmin%3Fq%3Dx%23y?q=%3C%26+value&empty=",
   );
   assert.equal(
-    withQuery(navigationUrl("https://example.test/path#section"), {q: queryValue("one two")}),
+    withQuery("https://example.test/path#section", {q: queryValue("one two")}),
     "https://example.test/path?q=one+two#section",
   );
+  assert.equal(relativePath("/things/", pathSegment("one")), "/things/one");
+  assert.equal(relativeResourcePath("/images", pathSegment("one")), "/images/one");
   assert.throws(() => relativePath("/things?admin=", pathSegment("yes")), /base path/i);
   assert.throws(() => relativeResourcePath("/images", pathSegment("x"), ".png?download=1"), /suffix/i);
+});
+
+test("withQuery validates plain strings before URL parsing can normalize them", () => {
+  for (const input of [
+    "relative/path",
+    "//evil.example/path",
+    " /safe",
+    "/sa\nfe",
+    "/safe\\path",
+    "https://user:pass@example.test/path",
+    "javascript:alert(1)",
+    "/safe/..//evil.example/path",
+  ]) {
+    assert.throws(() => withQuery(input, {q: queryValue("safe")}), /Invalid URL/i, input);
+  }
+  assert.equal(
+    withQuery("HTTPS://Example.test:443/a/../b?old=value#section", {q: queryValue("one two")}),
+    "https://example.test/b?q=one+two#section",
+  );
+  assert.throws(() => withQuery("mailto:user@example.test", {q: queryValue("\n")}), /Invalid URL/i);
 });
 
 test("path segments reject dot traversal components", () => {

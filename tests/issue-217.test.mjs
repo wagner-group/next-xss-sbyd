@@ -102,10 +102,9 @@ test("issue217 restricts scope and source MIME values without trimming or URI-sa
 
 test("issue217 revalidates every URL sink after parsing and uses canonical output", () => {
   const invalid = ["javascript:alert(1)", "jAvA&#x73;cript:alert(1)", "java&#9;script:alert(1)", "data:image/svg+xml,x", "blob:https://example.test/x", "//evil.test/x", "https://user:pass@example.test/", "relative.png", "#anchor", "https:\\evil.test/x", " /safe", "/safe ", "/a&#10;b", "", "https://["];
-  const resourceOnlyInvalid = ["mailto:user@example.test", "tel:+15551234"];
-  const valid = [["/a/../b?a=1&amp;b=2", "/b?a=1&b=2"], ["https://EXAMPLE.test:443/a/../b", "https://example.test/b"], ["http://example.test/a", "http://example.test/a"]];
+  const valid = [["mailto:user@example.test", "mailto:user@example.test"], ["tel:+15551234", "tel:+15551234"], ["/a/../b?a=1&amp;b=2", "/b?a=1&b=2"], ["https://EXAMPLE.test:443/a/../b", "https://example.test/b"], ["http://example.test/a", "http://example.test/a"]];
   for (const [tag, attr] of [["a", "href"], ["img", "src"], ["audio", "src"], ["video", "src"], ["video", "poster"], ["source", "src"]]) {
-    const cases = [...invalid.map(value => [value, null]), ...valid, ...resourceOnlyInvalid.map(value => [value, tag === "a" ? value : null])];
+    const cases = [...invalid.map(value => [value, null]), ...valid];
     for (const [value, expected] of cases) {
       const fragment = `<${tag} ${attr}="${value}">text</${tag}>`;
       const node = display(tag === "source" ? `<audio>${fragment}</audio>` : fragment).querySelector(tag);

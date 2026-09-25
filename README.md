@@ -10,6 +10,8 @@ For adoption guidance, see [building a new application](docs/newcode.md) or
 [retrofitting an existing application](docs/retrofit.md). The
 [design document](docs/design.md) describes the approach, and
 [caveats and residual risks](docs/caveats.md) identifies its limits.
+Use the optional [Playwright integration](docs/playwright.md) to make existing
+functional tests fail on unexpected CSP violations and check enforcing nonce policies.
 `next-xss-sbyd` requires that the application be written in
 TypeScript with type information.
 
@@ -61,9 +63,13 @@ The `next-xss-sbyd` extension provides:
   `next-xss-sbyd/object-url` for checked PNG/JPEG/GIF Blob previews and downloads.
   See [object URL ownership, cleanup, and limits](docs/object-url.md).
 - `htmlEscape()` for escaping input so its markup displays as text.
-- `navigationUrl()`, `resourceUrl()`, and `formActionUrl()` to sanitize
-  URLs, so they cannot be used as a XSS vector, with matching `OrNull` variants for
-  optional values that should disappear when invalid.
+- `validateUrl()` to validate and canonicalize passive URLs as ordinary strings,
+  and `validateUrlOrNull()` for optional values that should disappear when invalid.
+  Successful validation returns the canonical form, not necessarily the input
+  (for example, `HTTPS://Example.COM:443/a` becomes `https://example.com/a`).
+  Navigation, image/media URLs, and form targets share one policy: root-relative,
+  HTTP(S), and validated `mailto:`/`tel:` URLs. CSP `form-action` independently
+  restricts where forms may submit.
 - `SafeBlock`, `SafeJsonScript`, `SafeJsonLdScript`, `SafeScriptBlock`,
   and `SafeStyleBlock` elements. These are safer replacements for
   script and style blocks (which can introduce XSS risk if dynamic

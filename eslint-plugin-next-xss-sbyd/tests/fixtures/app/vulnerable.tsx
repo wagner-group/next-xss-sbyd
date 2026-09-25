@@ -16,8 +16,8 @@ declare const resourceProps: {src: string};
 declare const activeProps: {src: string};
 declare const formProps: {action: string};
 declare const scriptContentProps: {children: string};
-type SafeNavigationUrl = string & {readonly fakeBrand: true};
-declare const spoofedNavigation: SafeNavigationUrl;
+type ConsumerUrl = string & {readonly fakeBrand: true};
+declare const spoofedNavigation: ConsumerUrl;
 type NestedSafeHtml = RenamedSafeHtml;
 declare const holder: {html: SafeHtml};
 

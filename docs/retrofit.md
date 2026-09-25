@@ -250,14 +250,20 @@ address for that use. A passive HTTP content type is a separate concept: a type
 accepted as data rather than an executable document by the response APIs. Validating
 a URL does not validate the bytes downloaded from it.
 
+Navigation, passive resources, and form targets all accept root-relative, HTTP(S),
+and validated `mailto:`/`tel:` URLs. External form targets pass this validation;
+CSP `form-action` independently limits submissions (only `'self'` by default).
+The shared check rejects executable schemes; it does not guarantee a URL is
+meaningful for every element or that its destination is trustworthy.
+
 Choose by what the browser does with the URL:
 
-| JSX sink                                        | Runtime policy                                   |
-| ----------------------------------------------- | ------------------------------------------------ |
-| `a[href]`, `area[href]`, `Link[href]`           | Validate raw strings as navigation URLs          |
-| passive `src`, `srcSet`, `poster`, `Image[src]` | Validate raw strings as passive resources        |
-| `form[action]`, `formAction`, `next/form`       | Validate raw strings as same-origin form targets |
-| `script[src]`, `iframe[src]`, executable links  | Require a `TrustedScriptUrl` object from this package           |
+| JSX sink                                        | Runtime policy                                        |
+| ----------------------------------------------- | ----------------------------------------------------- |
+| `a[href]`, `area[href]`, `Link[href]`           | Shared passive URL validation                         |
+| passive `src`, `srcSet`, `poster`, `Image[src]` | Shared passive URL validation                         |
+| `form[action]`, `formAction`, `next/form`       | Shared passive URL validation                         |
+| `script[src]`, `iframe[src]`, executable links  | Require a `TrustedScriptUrl` object from this package |
 
 ```tsx
 import Link from "next/link";
@@ -360,7 +366,6 @@ Encode dynamic data as data, not URL syntax:
 
 ```ts
 import {
-  navigationUrl,
   pathSegment,
   queryValue,
   relativePath,
@@ -370,22 +375,21 @@ import {
 
 const detail = relativePath("/products", pathSegment(productId));
 const image = relativeResourcePath("/images", pathSegment(productId), ".png");
-const search = withQuery(navigationUrl("/search"), {
+const search = withQuery("/search", {
   q: queryValue(userSearch),
 });
 ```
 
-Use `navigationUrlOrNull` or `resourceUrlOrNull` when invalid optional user input should
-make a link or resource disappear.
+Use `validateUrlOrNull` when an invalid optional URL should remove a link or
+resource. Use `validateUrl` to validate a URL early and throw on invalid input.
+Both return ordinary strings when validation succeeds. The JSX runtime checks
+the URL again at the sink.
 
-These nullable variants cover only `navigationUrl` and `resourceUrl`. Composed builders such
-as `pathSegment`, `relativePath`, `relativeResourcePath`, and `withQuery` still throw;
-reject or normalize invalid dynamic pieces when reading request or stored data.
-Use the throwing builders when invalid stored application data is an error that should
-surface. `navigationUrl()`, `resourceUrl()`, and `formActionUrl()` validate URLs
-before rendering. Their return types record which checks the URL passed. These
-values are strings with TypeScript brands, without runtime identity markers. The
-JSX runtime validates them again; these brands are optional for passive URL props.
+`PathSegment` and `QueryValue` still record encoded dynamic pieces. `relativePath`
+and `relativeResourcePath` return ordinary strings. `withQuery` accepts an ordinary
+string and validates both the input and the resulting URL. These composed builders
+still throw; reject or normalize invalid dynamic pieces when reading request or
+stored data.
 
 ## 4. Replace inline script and style content
 

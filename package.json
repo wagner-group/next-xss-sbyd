@@ -23,7 +23,9 @@
     "test:object-url-browser": "npm run build && node scripts/test-object-url-browser.mjs && node scripts/test-object-url-lifecycle.mjs",
     "test:frame-browser": "npm run build && node scripts/test-sanitized-frame-browser.mjs",
     "test:markdown-browser": "npm run build && node scripts/test-markdown-browser.mjs",
-    "test:jsx-redirection": "npm run build && node --test tests/jsx-redirection.test.mjs && node scripts/test-jsx-redirection-next.mjs"
+    "test:jsx-redirection": "npm run build && node --test tests/jsx-redirection.test.mjs && node scripts/test-jsx-redirection-next.mjs",
+    "test:playwright": "npm run build && node scripts/test-playwright-csp.mjs",
+    "test:playwright-next": "npm run build && node scripts/test-playwright-next.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.6.2",
@@ -35,7 +37,8 @@
     "playwright-core": "1.62.1",
     "typescript": "~6.0.3",
     "semver": "^7.8.5",
-    "react-markdown": "10.1.0"
+    "react-markdown": "10.1.0",
+    "@playwright/test": "1.62.1"
   },
   "engines": {
     "node": "^22.22.2 || ^24.15.0 || ^26.0.0"

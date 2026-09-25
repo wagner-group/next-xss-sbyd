@@ -62,5 +62,5 @@ export function checkUrlAttribute<Message extends string>(
 }
 
 export const URL_RULE_MESSAGES = {
-  dangerousLiteral: "Dangerous or executable URL scheme in JSX. Use the sink-specific next-xss-sbyd URL builder.",
+  dangerousLiteral: "Dangerous or executable URL scheme in JSX. Use validateUrl for passive URLs or trustedScriptUrl for active content.",
 } as const;

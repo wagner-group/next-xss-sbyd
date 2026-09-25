@@ -1,17 +1,14 @@
 import type {
   SafeHtml,
-  SafeNavigationUrl,
-  SafeResourceUrl,
   SafeScript,
   SafeStyleSheet,
   TrustedScriptUrl,
 } from "next-xss-sbyd";
 import {
-  formActionUrl,
-  navigationUrl,
-  navigationUrlOrNull,
-  resourceUrl as makeResourceUrl,
-  resourceUrlOrNull,
+  validateUrl,
+  validateUrlOrNull,
+  withQuery,
+  queryValue,
   SafeResponse,
 } from "next-xss-sbyd";
 import {SafeBlock, SafeExternalIframe, SafeJsonScript, SafeScriptBlock, SafeStyleBlock} from "next-xss-sbyd";
@@ -30,11 +27,27 @@ declare const resourceUrl: TrustedScriptUrl;
 declare const nonce: CspNonce;
 
 new SafeResponse(html);
-navigationUrl("/account");
-makeResourceUrl("/avatar.png");
-formActionUrl("/submit");
-const optionalNavigation: SafeNavigationUrl | null = navigationUrlOrNull("/account");
-const optionalResource: SafeResourceUrl | null = resourceUrlOrNull("/avatar.png");
+const validated: string = validateUrl("/account");
+const optionalUrl: string | null = validateUrlOrNull("/avatar.png");
+const queried: string = withQuery("/search", {q: queryValue("hello")});
+// @ts-expect-error Nullable validation must be checked before assigning to string.
+const requiredUrl: string = validateUrlOrNull("/account");
+// @ts-expect-error The navigation URL brand has been removed.
+import type {SafeNavigationUrl} from "next-xss-sbyd";
+// @ts-expect-error The resource URL brand has been removed.
+import type {SafeResourceUrl} from "next-xss-sbyd";
+// @ts-expect-error The form action URL brand has been removed.
+import type {SafeFormActionUrl} from "next-xss-sbyd";
+// @ts-expect-error The old navigation builder has been removed.
+import {navigationUrl} from "next-xss-sbyd";
+// @ts-expect-error The old resource builder has been removed.
+import {resourceUrl as removedResourceUrl} from "next-xss-sbyd";
+// @ts-expect-error The old form action builder has been removed.
+import {formActionUrl} from "next-xss-sbyd";
+// @ts-expect-error The old nullable navigation builder has been removed.
+import {navigationUrlOrNull} from "next-xss-sbyd";
+// @ts-expect-error The old nullable resource builder has been removed.
+import {resourceUrlOrNull} from "next-xss-sbyd";
 SafeBlock({html});
 SafeExternalIframe({src: resourceUrl, sandbox: "", title: "Static content"});
 SafeExternalIframe({src: resourceUrl, sandbox: "allow-scripts", title: "Scripted embed"});
@@ -58,8 +71,7 @@ safeRenderToPipeableStream(null, {bootstrapModules: [resourceUrl], nonce});
 void script;
 void styleSheet;
 void resourceUrl;
-void optionalNavigation;
-void optionalResource;
+void [validated, optionalUrl, queried];
 
 // Pages handlers infer the safe response, including Next's fluent helpers.
 import type {NextApiRequest, NextApiResponse} from "next";

@@ -2,7 +2,7 @@ import createDOMPurify from "dompurify";
 import type {DOMPurify, WindowLike} from "dompurify";
 import {htmlSafeByReview} from "safevalues/restricted/reviewed";
 import type {SafeHtml} from "safevalues";
-import {navigationUrlOrNull, resourceUrlOrNull} from "../url.js";
+import {validateUrlOrNull} from "../url.js";
 
 const ALLOWED_TAGS = [
   "a", "b", "blockquote", "br", "caption", "code", "del", "em", "h1", "h2", "h3",
@@ -41,8 +41,7 @@ export function createSanitizer(window: WindowLike): DOMPurify {
 function cleanAttribute(tag: string, name: string, value: string): string | null {
   if (name === "title" || name === "aria-label") return value;
   if (!ELEMENT_ATTRIBUTES[tag]?.includes(name)) return null;
-  if (name === "href") return navigationUrlOrNull(value);
-  if (name === "src" || name === "poster") return resourceUrlOrNull(value);
+  if (name === "href" || name === "src" || name === "poster") return validateUrlOrNull(value);
   if (name === "scope") return SCOPES.has(value) ? value : null;
   if (name === "type") return MEDIA_TYPES.has(value) ? value : null;
   if (name === "width" || name === "height" || name === "colspan" || name === "rowspan") {

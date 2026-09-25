@@ -21,7 +21,7 @@ assert.deepEqual(Object.keys(bundle.metafile.inputs).filter(path => /(?:^|\/)(?:
 await writeFile(new URL('app.js', output), bundle.outputFiles[0].contents);
 // A core-entry import must not pull the Markdown renderer into unrelated apps.
 const core = await build({bundle: true, platform: 'browser', conditions: ['browser'], write: false, metafile: true,
-  stdin: {contents: "export {navigationUrl} from 'next-xss-sbyd'", resolveDir: directory.pathname},
+  stdin: {contents: "export {validateUrl} from 'next-xss-sbyd'", resolveDir: directory.pathname},
 });
 assert.deepEqual(Object.keys(core.metafile.inputs).filter(path => /(?:^|\/)(?:react-markdown|rehype-sanitize)(?:\/|$)/.test(path)), []);
 const markup = renderToString(React.createElement(SafeMarkdown, {children: source}));
