@@ -12,6 +12,7 @@ import {verifyCspDiagnostics} from "./test-csp-diagnostics.mjs";
 import {SafeResponse} from "next-xss-sbyd";
 import {sanitizeUserHtml} from "next-xss-sbyd/sanitize";
 import {verifyNativePdf, chromePath} from "./test-native-pdf.mjs";
+import {verifyHtmlIframe} from "./test-html-iframe-next.mjs";
 import {verifySanitizerLifecycle} from "./sanitizer-lifecycle.mjs";
 
 const allFixtures = [
@@ -335,6 +336,7 @@ async function verifyFixture(browser, fixture, mode, disableHook = false) {
     }
 
     await verifySanitizerLifecycle(browser, origin, fixture);
+    await verifyHtmlIframe(browser, origin, fixture.name);
 
     const page = await browser.newPage();
     const collectorRequests = [];

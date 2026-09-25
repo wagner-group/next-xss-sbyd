@@ -1,7 +1,7 @@
 import React, {Component, createRef} from 'react';
 import {hydrateRoot} from 'react-dom/client';
 import {flushSync} from 'react-dom';
-import {SanitizedHtmlFrame} from 'next-xss-sbyd/sanitized-html-frame';
+import {SafeHtmlIframe} from 'next-xss-sbyd/safe-html-iframe';
 import {sanitizeUserHtml} from 'next-xss-sbyd/sanitize';
 import {initialProps} from './initial.mjs';
 
@@ -29,7 +29,7 @@ class Boundary extends Component {
 }
 
 function tree() {
-  return React.createElement(Boundary, {key: generation}, React.createElement(SanitizedHtmlFrame, {...currentProps, ref: currentRef}));
+  return React.createElement(Boundary, {key: generation}, React.createElement(SafeHtmlIframe, {...currentProps, ref: currentRef}));
 }
 
 const root = hydrateRoot(document.getElementById('root'), tree(), {
@@ -51,7 +51,7 @@ window.frameHarness = {
   },
   update(props, ref = 'object', reset = false) {
     currentProps = props;
-    currentRef = ref === 'object' ? objectRef : ref === 'callback' ? callbackRef : ref === 'cleanup' ? cleanupRef : null;
+    currentRef = ref === 'object' ? objectRef : ref === 'callback' ? callbackRef : ref === 'cleanup' ? cleanupRef : ref === 'inline' ? node => callbackRef(node) : null;
     if (reset) generation++;
     flushSync(function renderUpdate() { root.render(tree()); });
   },

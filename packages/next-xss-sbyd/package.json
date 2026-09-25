@@ -72,15 +72,15 @@
       "types": "./dist/route-handler.d.ts",
       "default": "./dist/route-handler.js"
     },
-    "./sanitized-html-frame": {
+    "./safe-html-iframe": {
       "react-server": {
-        "types": "./dist/sanitized-html-frame-server.d.ts",
-        "default": "./dist/sanitized-html-frame-server.js"
+        "types": "./dist/safe-html-iframe-server.d.ts",
+        "default": "./dist/safe-html-iframe-server.js"
       },
-      "types": "./dist/sanitized-html-frame.d.ts",
-      "edge-light": "./dist/sanitized-html-frame.js",
-      "browser": "./dist/sanitized-html-frame.js",
-      "default": "./dist/sanitized-html-frame.js"
+      "types": "./dist/safe-html-iframe.d.ts",
+      "edge-light": "./dist/safe-html-iframe.js",
+      "browser": "./dist/safe-html-iframe.js",
+      "default": "./dist/safe-html-iframe.js"
     }
   },
   "types": "./dist/index.d.ts",

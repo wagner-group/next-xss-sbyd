@@ -5,7 +5,7 @@ import React from 'react';
 import {renderToString} from 'react-dom/server';
 import {build} from 'esbuild';
 import {chromium, firefox, webkit} from 'playwright-core';
-import {SanitizedHtmlFrame} from 'next-xss-sbyd/sanitized-html-frame';
+import {SafeHtmlIframe} from 'next-xss-sbyd/safe-html-iframe';
 import {initialProps} from '../tests/browser-frame/initial.mjs';
 
 const directory = new URL('../', import.meta.url);
@@ -13,7 +13,6 @@ const output = new URL('tmp/browser-frame/', directory);
 await mkdir(output, {recursive: true});
 const bundle = await build({
   bundle: true, platform: 'browser', conditions: ['browser'], format: 'iife',
-  ...(process.env.FRAME_REACT_ROOT ? {alias: {react: `${process.env.FRAME_REACT_ROOT}/react`, 'react-dom': `${process.env.FRAME_REACT_ROOT}/react-dom`}} : {}),
   minify: true, write: false, metafile: true, sourcemap: 'external',
   outfile: new URL('app.js', output).pathname,
   define: {'process.env.NODE_ENV': '"production"', 'process.env': '{}'},
@@ -21,7 +20,7 @@ const bundle = await build({
 });
 assert.deepEqual(Object.keys(bundle.metafile.inputs).filter(path => /(?:^|\/)(?:jsdom|isomorphic-dompurify)(?:\/|$)/.test(path)), [], 'Browser graph must exclude Node DOM engines');
 for (const file of bundle.outputFiles) await writeFile(file.path, file.contents);
-const markup = renderToString(React.createElement(SanitizedHtmlFrame, initialProps));
+const markup = renderToString(React.createElement(SafeHtmlIframe, initialProps));
 const received = [];
 const requestDetails = [];
 const coverage = [];
@@ -32,20 +31,24 @@ const server = createServer(async function serve(request, response) {
   requestDetails.push({path: url.pathname, referer: request.headers.referer});
   if (url.pathname === '/nested/page') {
     const blocked = url.searchParams.has('blocked');
+    const unrestrictedNavigation = url.searchParams.has('navigation');
     const tt = url.searchParams.get('tt');
     const trustedTypes = tt ? `; require-trusted-types-for 'script'; trusted-types ${tt === 'denied' ? "'none'" : tt === 'sink-denied' ? 'dompurify' : 'dompurify google#safe'}` : '';
     // Opaque sandbox origins do not reliably match 'self': explicit host sources
     // permit resources while preserving the frame's unique origin.
-    response.setHeader('Content-Security-Policy', `default-src 'none'; script-src 'nonce-frame-test'; frame-src 'self'; img-src ${blocked ? "'none'" : origin}; media-src ${blocked ? "'none'" : origin}; base-uri 'none'; object-src 'none'${trustedTypes}`);
+    response.setHeader('Content-Security-Policy', `default-src ${unrestrictedNavigation ? '*' : "'none'"}; script-src 'nonce-frame-test'; ${unrestrictedNavigation ? '' : "frame-src 'self';"} img-src ${blocked ? "'none'" : origin}; media-src ${blocked ? "'none'" : origin}; base-uri 'none'; object-src 'none'${trustedTypes}`);
     if (url.searchParams.has('no-referrer')) response.setHeader('Referrer-Policy', 'no-referrer');
     response.setHeader('Content-Type', 'text/html');
     response.end(`<!doctype html><meta charset="utf-8"><title>Frame regression</title><p id="description">Description</p><p id="label">Article</p><div id="root">${markup}</div><script nonce="frame-test" src="/app.js"></script>`);
   } else if (url.pathname === '/app.js') {
     response.setHeader('Content-Type', 'text/javascript');
     response.end(bundle.outputFiles.find(file => file.path.endsWith('.js')).contents);
-  } else if (/^\/assets\/(pixel\.png|tone\.wav|clip\.webm)$/.test(url.pathname)) {
+  } else if (/^\/assets\/(pixel\.png|poster\.png|tone\.wav|clip\.webm)$/.test(url.pathname)) {
     response.setHeader('Content-Type', {'png': 'image/png', 'wav': 'audio/wav', 'webm': 'video/webm'}[url.pathname.split('.').at(-1)]);
-    response.end(await readFile(new URL(`tests/browser-sanitize${url.pathname}`, directory)));
+    response.end(await readFile(new URL(`tests/browser-sanitize${url.pathname.replace('poster.png', 'pixel.png')}`, directory)));
+  } else if (url.pathname === '/remote-page') {
+    response.setHeader('Content-Type', 'text/html');
+    response.end('<h1>Remote page</h1><form><input placeholder="Login"></form>');
   } else response.writeHead(404).end();
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
@@ -130,10 +133,25 @@ async function verify(browser, name, suffix = '') {
     await new Promise(resolve => setTimeout(resolve, 100));
     assert.equal(received.slice(parseStart).some(path => path.startsWith('/parser-only')), false, 'This sanitizer-only corpus unexpectedly fetched resources');
 
+    // A parent render or ref identity change must preserve the browsing document.
+    for (const ref of ['object', 'callback', 'inline', 'none']) {
+      await page.evaluate(({props, ref}) => window.frameHarness.update(props, ref), {props: initialProps, ref});
+      frame = await documentFrame(page, 'Readable content');
+      await frame.locator('body').evaluate(body => { body.dataset.marker = 'preserved'; });
+      await page.locator('iframe').evaluate(element => {
+        window.unchangedLoads = 0;
+        element.addEventListener('load', () => window.unchangedLoads++);
+      });
+      await page.evaluate(({props, ref}) => window.frameHarness.update({...props, title: 'New title'}, ref), {props: initialProps, ref});
+      await page.waitForTimeout(200);
+      assert.equal(await frame.locator('body').getAttribute('data-marker'), 'preserved', `${name}: ${ref} ref reloaded an unchanged document`);
+      assert.equal(await page.evaluate(() => window.unchangedLoads), 0);
+    }
+
     const attack = '<p>Attack retained text</p><script>parent.attacked=true</script><img src="/missing" onerror="parent.attacked=true"><iframe srcdoc="<script>parent.attacked=true</script>"></iframe><form action="/escaped"><input name="owned"></form><base href="https://evil.invalid"><meta http-equiv="refresh" content="0;url=/escaped"><svg onload="parent.attacked=true"></svg><a href="javascript:parent.attacked=true" target="_top">Bad link</a>';
     await page.evaluate(value => window.frameHarness.update({value, title: 'Attack'}), attack);
     frame = await documentFrame(page, 'Attack retained text');
-    assert.equal(await frame.locator('script, iframe, form, input, base, meta, svg, [onerror], [onload], [target]').count(), 0);
+    assert.equal(await frame.locator('script, iframe, form, input, base, meta[http-equiv], svg, [onerror], [onload], [target]').count(), 0);
     assert.equal(await frame.locator('a').getAttribute('href'), null);
     assert.equal(await page.evaluate(() => window.attacked), undefined);
     // Browser evaluation is privileged; inserting an actual script still tests
@@ -155,7 +173,7 @@ async function verify(browser, name, suffix = '') {
     await documentFrame(page, 'Another update');
     assert.equal(await original.evaluate(element => element === document.querySelector('iframe')), true);
     await page.evaluate(() => window.frameHarness.update({value: '', title: 'Empty'}, 'none'));
-    await page.waitForFunction(() => document.querySelector('iframe').getAttribute('srcdoc') === '');
+    await page.waitForFunction(() => document.querySelector('iframe').getAttribute('srcdoc') === '<meta charset="utf-8"><meta name="referrer" content="no-referrer">');
     assert.equal((await page.evaluate(() => window.frameHarness.status())).callbackValues.at(-1), null);
 
     const forbidden = {
@@ -210,21 +228,49 @@ async function verifyBlocked(browser) {
   } finally { await page.close(); }
 }
 
-/** A host's explicit Referrer-Policy also governs the embedded media. */
+/** Inner document metadata suppresses referrers without an HTTP policy. */
 async function verifyReferrer(browser) {
   const page = await browser.newPage();
   try {
     const start = requestDetails.length;
-    await page.goto(`${origin}/nested/page?no-referrer`);
+    await page.goto(`${origin}/nested/page`);
     await page.waitForFunction(() => window.frameHarness?.ready());
     const frame = await documentFrame(page, 'Readable content');
     await frame.locator('img').first().evaluate(image => image.decode());
     assert.equal(await loadMedia(frame), 'loaded');
     const media = requestDetails.slice(start).filter(request => request.path.startsWith('/assets/'));
     assert(media.some(request => request.path.endsWith('.wav')));
-    assert(media.some(request => request.path.endsWith('.png')));
+    assert(media.some(request => request.path.endsWith('/pixel.png')));
+    assert(media.some(request => request.path.endsWith('/poster.png')));
     assert(media.every(request => request.referer === undefined));
   } finally { await page.close(); }
+}
+
+/** A link can replace srcdoc with remote content unless frame-src blocks it. */
+async function verifyNavigation(browser) {
+  for (const unrestricted of [true, false]) {
+    const page = await browser.newPage();
+    try {
+      await page.goto(`${origin}/nested/page${unrestricted ? '?navigation' : ''}`);
+      await page.waitForFunction(() => window.frameHarness?.ready());
+      // localhost is a different origin from the embedding 127.0.0.1 page.
+      const remote = origin.replace('127.0.0.1', 'localhost') + '/remote-page';
+      await page.evaluate(value => window.frameHarness.update({value, title: 'Navigation'}), `<a href="${remote}">Remote link</a>`);
+      const frame = await documentFrame(page, 'Remote link');
+      const start = received.length;
+      await frame.locator('a').click();
+      if (unrestricted) {
+        await page.frameLocator('iframe').locator('h1').filter({hasText: 'Remote page'}).waitFor();
+        assert.equal(frame.url(), remote);
+        assert.equal(await frame.locator('form').count(), 1);
+        assert.equal(await frame.evaluate(() => { try { return parent.document === document; } catch { return false; } }), false);
+      } else {
+        await page.waitForTimeout(250);
+        assert.equal(received.slice(start).includes('/remote-page'), false, 'frame-src must block the remote request');
+      }
+      assert.equal(await page.locator('iframe').getAttribute('sandbox'), '');
+    } finally { await page.close(); }
+  }
 }
 
 try {
@@ -236,18 +282,22 @@ try {
       await verify(browser, name);
       await verifyBlocked(browser);
       await verifyReferrer(browser);
-      if (name === 'chromium') {
+      await verifyNavigation(browser);
+      const probe = await browser.newPage();
+      const supportsTrustedTypes = await probe.evaluate(() => typeof trustedTypes !== 'undefined');
+      await probe.close();
+      if (supportsTrustedTypes) {
         await verify(browser, name, '?tt=allowed');
         for (const tt of ['denied', 'sink-denied']) {
           const page = await browser.newPage();
           try {
-            await page.coverage.startJSCoverage({resetOnNavigation: false});
+            if (name === 'chromium') await page.coverage.startJSCoverage({resetOnNavigation: false});
             await page.goto(`${origin}/nested/page?tt=${tt}`);
             await page.locator('#failure').waitFor();
             assert.equal(await page.locator('iframe').count(), 0, `${tt}: Trusted Types denial must fail closed`);
-            assert.match(await page.locator('#failure').textContent(), /sanitize|Trusted|policy|safe/i);
+            assert.match(await page.locator('#failure').textContent(), /sanitize|Trusted|policy|safe|CSP/i);
           } finally {
-            coverage.push(...await page.coverage.stopJSCoverage());
+            if (name === 'chromium') coverage.push(...await page.coverage.stopJSCoverage());
             await page.close();
           }
         }

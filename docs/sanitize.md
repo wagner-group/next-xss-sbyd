@@ -219,16 +219,16 @@ See the [validation matrix and measured bundle/latency results](sanitize-validat
 
 ## Isolated document previews
 
-Prefer `SafeBlock` for in-page content. Use `SanitizedHtmlFrame` only when the
+Prefer `SafeBlock` for in-page content. Use `SafeHtmlIframe` only when the
 content needs a separate document: frames add layout, focus, accessibility and
 styling costs. This API is distinct from the URL-based `SafeIframe` and is not a
 PDF viewer or general embed component.
 
 ```tsx
-import {SanitizedHtmlFrame} from "next-xss-sbyd/sanitized-html-frame";
+import {SafeHtmlIframe} from "next-xss-sbyd/safe-html-iframe";
 
 export function Preview({html}: {html: string}) {
-  return <SanitizedHtmlFrame value={html} title="Article preview" width="100%" height={400} />;
+  return <SafeHtmlIframe value={html} title="Article preview" width="100%" height={400} />;
 }
 ```
 
@@ -241,23 +241,34 @@ application capabilities; do not use them to replace `srcdoc` or weaken the sand
 Unknown props throw at runtime, including casing variants of `src`, `srcDoc`,
 `sandbox`, raw HTML, children, event handlers and referrer-policy overrides.
 
-The component uses the same fixed sanitizer and always sets `sandbox=""` and
-`referrerpolicy="no-referrer"`. It grants no script, same-origin, form, popup,
+The component uses the same fixed sanitizer and always sets `sandbox=""`.
+It prepends a UTF-8 charset declaration and `<meta name="referrer"
+content="no-referrer">` to the sanitized document. That inner metadata suppresses
+referrers on resource requests; the iframe's own `referrerpolicy="no-referrer"`
+attribute does not control requests from its `srcdoc` document.
+It grants no script, same-origin, form, popup,
 download or top-navigation permission. Parent styles do not style the inner
-document. Links may navigate within the sandbox; sanitized links cannot target the
-top page. Do not rely on a frame to make misleading content or links trustworthy.
+document. Clicking a sanitized link can replace the frame with a remote page
+from any origin permitted by the parent's CSP. That page remains sandboxed, but
+can display misleading content, including a login-looking form, inside your UI.
+Restrict `frame-src` (or its `child-src` fallback) to intended navigation origins;
+`about:srcdoc` documents remain permitted. Sanitized links cannot target the top
+page. Do not rely on a frame to make content or links trustworthy.
 
 Node SSR serializes sanitized content. Hydration sanitizes again and installs the
 browser-authenticated HTML through the DOM `srcdoc` property, preserving
 `TrustedHTML` identity. The server-component conditional export renders without
 client hooks or refs. Edge and DOM-less workers fail explicitly, as with the HTML
 sanitizer; there is no raw-string fallback. Client rendering uses a commit-time
-assignment, so an initially empty frame is possible before React commits the ref.
-Hydration replaces the document; preserve any reading position in application state
-if content is re-rendered. Sanitizer errors should be handled by the application's
-error boundary.
+layout-effect assignment, so an initially empty frame is possible before React commits.
+Hydration intentionally replaces the SSR document once so the browser sanitizer
+authenticates the displayed content, even when its serialization matches the server.
+This can cause a second initial load. Subsequent parent renders, presentation-prop
+changes and ref identity changes preserve the document while `value` is unchanged.
+Changing `value` sanitizes and replaces the document, resetting its reading position.
+Sanitizer errors should be handled by the application's error boundary.
 
-Chromium Trusted Types enforcement is supported without a default policy when
+Trusted Types enforcement is supported without a default policy when
 `trusted-types` allows **both `dompurify` and `google#safe`**, the policy names used
 by DOMPurify and SafeValues. The private sanitizer must create its policy and the
 browser sink must receive authenticated `TrustedHTML`; denying either policy fails
@@ -267,10 +278,10 @@ not add Trusted Types support to other components or change the CSP builder.
 The sandbox is **not a network firewall**. The `about:srcdoc` document inherits the
 embedding document's CSP; restrict `img-src` and `media-src` to intended hosts.
 A restrictive inherited policy can block otherwise permitted images or media.
-The frame's referrer policy does not establish a no-referrer policy for every inner
-resource: images have the sanitizer's own `no-referrer` attribute, while media use
-the inherited document referrer policy. Set an HTTP `Referrer-Policy` header when
-that matters. Requests can still reveal IP addresses/timing and may carry cookies.
+The inner referrer metadata covers images, audio, video and posters without
+requiring a host HTTP `Referrer-Policy` header. After link navigation, a remote
+document controls its own referrer policy. Requests can still reveal IP addresses
+and timing and may carry cookies.
 
 Root-relative resources such as `/assets/image.png` resolve using the embedding
 page's base URL. Document-relative URLs such as `image.png` are removed by the
@@ -280,7 +291,11 @@ are removed. Sanitization itself may attempt requests before removing markup;
 network tests distinguish parsing from the displayed document.
 
 The [browser fixture](../scripts/test-sanitized-frame-browser.mjs) checks Chromium,
-Firefox and WebKit, SSR/hydration, refs, CSP/resource behavior and Chromium Trusted
-Types. The [HTML iframe specification](https://html.spec.whatwg.org/multipage/iframe-embed-object.html#the-iframe-element)
+Firefox and WebKit, SSR/hydration, stable documents across parent renders and ref
+changes, CSP/resource behavior, referrer suppression and link navigation. Trusted
+Types allowed/denied policy cases run on every engine exposing `trustedTypes`.
+The Next.js compatibility matrix also exercises server and client consumers on
+Next 14 (React 18), Next 15 and Next 16 (React 19).
+The [HTML iframe specification](https://html.spec.whatwg.org/multipage/iframe-embed-object.html#the-iframe-element)
 and [CSP inheritance rules](https://w3c.github.io/webappsec-csp/#csp-inheriting-to-avoid-bypasses)
 describe the underlying browser isolation model.
