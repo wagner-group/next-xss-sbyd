@@ -7,6 +7,9 @@ requires `next-xss-sbyd`'s runtime checks.
 The rules use TypeScript information about expression types and imports. Linting
 stops with a configuration error if the parser cannot supply it.
 
+Use the latest patch release of Node.js 22 (22.13.0 or later), 24, or 26,
+as required by the runtime. Upgrade unsupported Node.js versions before migration.
+
 ## Configuration
 
 ```js

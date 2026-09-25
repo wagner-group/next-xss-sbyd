@@ -15,6 +15,9 @@
     "build": "tsc -b",
     "typecheck": "tsc -b --pretty false"
   },
+  "engines": {
+    "node": "^22.13.0 || ^24.0.0 || ^26.0.0"
+  },
   "peerDependencies": {
     "next-xss-sbyd": ">=0.0.0-milestone2 <1",
     "@typescript-eslint/parser": ">=8.0.0 <9",
