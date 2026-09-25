@@ -17,7 +17,7 @@ window.rejects = function rejects(fn) {
   try { fn(); } catch (error) { if (error instanceof TypeError) return; throw error; }
   throw new Error('Expected TypeError');
 };
-window.contract = function contract() {
+window.contract = async function contract() {
   const {createPassiveObjectUrl: create, revokePassiveObjectUrl: revoke, attachPassiveObjectUrlPreview: preview, attachPassiveObjectUrlDownload: download} = api;
   for (const type of ['', 'text/html', 'image/svg+xml', 'text/xml', 'application/javascript', 'text/css', 'application/pdf', 'application/octet-stream', 'text/plain', 'image/png; bad', 'image/png; a="', 'image/png; a=b;', 'image/png, image/jpeg']) window.rejects(() => create(new Blob(['x'], {type})));
   for (const value of [null, {}, 'blob:foreign', new MediaSource()]) window.rejects(() => create(value));
@@ -37,6 +37,7 @@ window.contract = function contract() {
   for (const name of ['', null, 42]) window.rejects(() => download(anchor, handle, name));
   const detach = download(anchor, handle, 'x.png');
   anchor.href = '/replacement'; detach(); detach();
+  await new Promise(resolve => setTimeout(resolve, 0));
   if (anchor.getAttribute('href') !== '/replacement') throw new Error('overwrote replacement');
   revoke(handle); revoke(handle);
   if (!handle.revoked) throw new Error('state');
@@ -61,6 +62,12 @@ window.mount = function mount(bytes, type, mode, fail = false, filename = 'pictu
   flushSync(() => root.render(React.createElement(StrictMode, null, child, fail ? React.createElement(Failure) : null)));
 };
 window.unmount = function unmount() { if (root) { flushSync(() => root.unmount()); root = undefined; } };
+
+window.mountDownload = function mountDownload(blob, filename) {
+  if (!root) root = createRoot(document.getElementById('root'));
+  flushSync(() => root.render(React.createElement(StrictMode, null,
+    React.createElement(api.PassiveObjectUrlDownload, {blob, filename}, 'Download'))));
+};
 
 // mountPreview's defensive catch requires a DOM setter/ref failure in a committed
 // native img; supported engines cannot produce that without a test double.

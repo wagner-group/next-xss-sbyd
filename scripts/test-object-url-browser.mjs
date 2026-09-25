@@ -60,6 +60,32 @@ try {
         await page.evaluate(() => window.unmount());
         await assertRevoked(page,replacement);
       }
+      // Exercise each effect dependency independently on the same mounted link.
+      await page.evaluate(pixel => {
+        window.downloadBlob = new Blob([new Uint8Array(pixel)], {type:'image/png'});
+        window.mountDownload(window.downloadBlob, 'original.png');
+      }, pixel);
+      for (const change of ['filename', 'blob']) {
+        const previous = await page.locator('a').getAttribute('href');
+        const bytes = change === 'filename' ? pixel : [...pixel, 0];
+        await page.evaluate(({change, bytes}) => {
+          if (change === 'blob') window.downloadBlob = new Blob([new Uint8Array(bytes)], {type:'image/png'});
+          window.mountDownload(window.downloadBlob, 'replacement.png');
+        }, {change, bytes});
+        const replacement = await page.locator('a').getAttribute('href');
+        assert.notEqual(replacement, previous);
+        await assertRevoked(page, previous);
+        assert.equal(await page.locator('a').getAttribute('href'), replacement);
+        const event = page.waitForEvent('download');
+        await page.locator('a').click();
+        const download = await event;
+        assert.equal(download.suggestedFilename(), 'replacement.png');
+        assert.equal(await download.failure(), null);
+        assert.deepEqual([...await readFile(await download.path())], bytes);
+      }
+      const finalDownload = await page.locator('a').getAttribute('href');
+      await page.evaluate(() => window.unmount());
+      await assertRevoked(page, finalDownload);
       for (const capture of [false,true]) {
         await page.evaluate(pixel => window.mount(pixel,'image/png','download'),pixel);
         const downloadUrl = await page.locator('a').getAttribute('href');
@@ -88,16 +114,15 @@ try {
       assert(errors.every(error => ['render failed','Expected an HTML anchor and a nonempty download filename'].includes(error)));
       // Observe real DOM mutations, including Strict Mode's discarded first effect.
       for (const url of await page.evaluate(() => [...new Set(window.observedUrls)])) await assertRevoked(page,url);
-      for (const type of ['image/png','image/jpeg','image/gif']) {
-        const bytes = await page.evaluate(async type => {
-          if (type === 'image/gif') return [...Uint8Array.from(atob('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'), c => c.charCodeAt(0))];
-          const canvas = document.createElement('canvas'); canvas.width=1; canvas.height=1;
-          const blob = await new Promise(resolve => canvas.toBlob(resolve,type));
-          return [...new Uint8Array(await blob.arrayBuffer())];
-        },type);
+      // Fixed image bytes keep URL decoding independent of canvas encoder support.
+      for (const [type, bytes, width] of [
+        ['image/png', pixel, 16],
+        ['image/jpeg', [...Buffer.from('/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AVN//2Q==', 'base64')], 1],
+        ['image/gif', [...Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64')], 1],
+      ]) {
         await page.evaluate(({bytes,type}) => window.mount(bytes,type,'preview'),{bytes,type});
         await page.locator('img').evaluate(img => img.decode());
-        assert.equal(await page.locator('img').evaluate(img => img.naturalWidth),1);
+        assert.equal(await page.locator('img').evaluate(img => img.naturalWidth),width);
         await page.evaluate(() => window.unmount());
         await page.evaluate(({bytes,type}) => window.mount(bytes,type,'download'),{bytes,type});
         const event = page.waitForEvent('download'); await page.locator('a').click();
