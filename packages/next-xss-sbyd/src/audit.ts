@@ -10,6 +10,7 @@ import { inventoryResponses } from "./inventory.js";
 
 const RULE_CATEGORIES: Readonly<Record<string, string>> = {
   "no-danger": "raw-html",
+  "no-object-url": "object-url",
   "safe-jsx-urls-active": "active-url",
   "no-unsafe-html-response": "html-response",
   "no-unsafe-api-send": "node-send",

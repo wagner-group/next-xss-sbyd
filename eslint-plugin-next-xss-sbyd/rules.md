@@ -313,6 +313,31 @@ meaningful type and validate it; casting through `unknown` or `any` is not a rep
 Restricted conversions require a separate, documented review of the producer and
 every place that consumes its output.
 
+## no-object-url
+
+Reports references to native `URL.createObjectURL`, including local aliases,
+destructuring, global-qualified access and statically resolvable computed members.
+Checking the reference also covers callback passing, `Reflect.apply`, nested
+`Function.prototype.call.call`, and casts of the function before `.call`/`.apply`.
+TypeScript declaration identity distinguishes native methods from unrelated
+user-defined methods and shadowed `URL` bindings. Native-typed function parameters
+and imported aliases are also checked when called; a local alias can report at
+both acquisition and invocation. Type services are required.
+Named `createObjectURL` access on `any`, `unknown` or unresolved/error receivers
+reports `unverifiedObjectUrl`: use the checked API or a justified disable.
+
+User-declared structural method types remain exempt. For example, a function
+parameter typed `{createObjectURL(blob: Blob): string}` can receive the native
+`URL` constructor without a finding. The rule does not trace values through
+these structural boundaries. Computed names without a finite literal type and
+reflective property lookup such as `Reflect.get` also require manual review.
+
+Use `createPassiveObjectUrl` from `next-xss-sbyd/object-url` and the matching
+download or preview adapter. A `MediaSource` workflow needs its own reviewed
+exception; casting it to `Blob` does not make it safe. The rule has no filename
+exemptions. The package's native implementation call may use a narrowly scoped,
+justified disable, like other reviewed exceptions.
+
 ## require-disable-justification
 
 Rejects unlimited `eslint-disable` directives and `xss-sbyd/*` disables without a

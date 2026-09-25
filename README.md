@@ -59,6 +59,9 @@ The `next-xss-sbyd` extension provides:
   validates passive URLs, and verifies `TrustedResourceUrl` objects for active
   resources. This package also validates Next.js component URLs through `next-xss-sbyd/compat/link`,
   `next-xss-sbyd/compat/image`, and `next-xss-sbyd/compat/form`.
+- `PassiveObjectUrlPreview` and `PassiveObjectUrlDownload` from
+  `next-xss-sbyd/object-url` for checked PNG/JPEG/GIF Blob previews and downloads.
+  See [object URL ownership, cleanup, and limits](docs/object-url.md).
 - `htmlEscape()` for escaping input so its markup displays as text.
 - `navigationUrl()`, `resourceUrl()`, and `formActionUrl()` to sanitize
   URLs, so they cannot be used as a XSS vector, with matching `OrNull` variants for

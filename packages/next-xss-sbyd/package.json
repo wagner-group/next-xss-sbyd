@@ -72,6 +72,10 @@
       "types": "./dist/route-handler.d.ts",
       "default": "./dist/route-handler.js"
     },
+    "./object-url": {
+      "types": "./dist/object-url.d.ts",
+      "default": "./dist/object-url.js"
+    },
     "./safe-html-iframe": {
       "react-server": {
         "types": "./dist/safe-html-iframe-server.d.ts",

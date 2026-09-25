@@ -167,3 +167,19 @@ test("response inventory includes safe constructors, methods, and Node streams",
     ["safePipe", 5, null],
   ]);
 });
+
+for (const suppressed of [false, true]) {
+  test(`CLI audit includes ${suppressed ? "suppressed" : "active"} native object URL findings`, async (t) => {
+    const root = await createApp(t);
+    await writeFile(join(root, "page.tsx"), [
+      suppressed ? '// eslint-disable-next-line xss-sbyd/no-object-url -- Reviewed native API fixture for audit integration.' : '',
+      'const create = URL.createObjectURL;',
+      cleanPage,
+    ].join("\n"));
+    const {report} = runCli(root, "audit");
+    const findings = report.findings.filter(finding => finding.ruleId === "xss-sbyd/no-object-url");
+    assert.equal(findings.length, 1);
+    assert.equal(findings[0].category, "object-url");
+    assert.equal(findings[0].suppressed, suppressed);
+  });
+}

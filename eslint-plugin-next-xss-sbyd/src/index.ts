@@ -5,6 +5,7 @@ import noDynamicScriptStyle from "./rules/no-dynamic-script-style.js";
 import noHtmlContentType from "./rules/no-html-content-type.js";
 import noHtmlTemplateStrings from "./rules/no-html-template-strings.js";
 import noRawRenderToString from "./rules/no-raw-render-to-string.js";
+import noObjectUrl from "./rules/no-object-url.js";
 import noUnsafeApiSend from "./rules/no-unsafe-api-send.js";
 import noUnsafeCastToSafeType from "./rules/no-unsafe-cast-to-safe-type.js";
 import noUnsafeHtmlResponse from "./rules/no-unsafe-html-response.js";
@@ -22,6 +23,7 @@ const rules = {
   "require-safe-api-route": requireSafeApiRoute,
   "require-safe-route-handler": requireSafeRouteHandler,
   "no-raw-render-to-string": noRawRenderToString,
+  "no-object-url": noObjectUrl,
   "safe-jsx-urls-active": safeJsxUrlsActive,
   "safe-jsx-urls-navigation": safeJsxUrlsNavigation,
   "no-html-content-type": noHtmlContentType,
@@ -71,6 +73,7 @@ plugin.configs.recommended = [
       "xss-sbyd/require-safe-api-route": "error",
       "xss-sbyd/require-safe-route-handler": "error",
       "xss-sbyd/no-raw-render-to-string": "error",
+      "xss-sbyd/no-object-url": "error",
       "xss-sbyd/safe-jsx-urls-active": "error",
       "xss-sbyd/no-html-content-type": "error",
       "xss-sbyd/no-dynamic-script-style": "error",
