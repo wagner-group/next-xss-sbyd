@@ -206,18 +206,18 @@ export function Example() {
 ```
 
 The runtime validates raw strings on built-in HTML elements such as `<a>` and
-`<img>` after resolving spreads. Navigation props allow root-relative, HTTP(S), `mailto:`, and `tel:` URLs;
-passive resources allow root-relative and HTTP(S) URLs; form actions allow same-origin
-root-relative targets. Invalid values throw. `next/image` static-import objects and
+`<img>` after resolving spreads. Navigation, passive resources, and form actions
+share one policy: root-relative, HTTP(S), and validated `mailto:`/`tel:` URLs.
+External form targets pass URL validation; CSP `form-action` independently restricts
+submissions to allowed destinations (only `'self'` by default). Invalid values throw.
+`next/image` static-import objects and
 function-valued server actions pass through unchanged.
 
 Active-content props such as `script[src]`, `iframe[src]`, executable `link[href]`, and
 SVG resource references require a `TrustedScriptUrl` object created by this package; `base[href]` and
 meta refresh are forbidden. Use `trustedScriptUrl` only for literal,
-developer-controlled resources. Branded passive URL builders remain useful when code
-needs to validate a URL before rendering it. Their return types record which checks
-the URL passed: navigation, resource loading, or form submission. These values remain
-strings without runtime identity markers, so the JSX runtime validates them again.
+developer-controlled resources. `validateUrl` returns an ordinary string and can
+validate passive URLs before rendering; it cannot authorize an active resource.
 
 Use `SafeExternalIframe` instead of an intrinsic iframe. React's intrinsic `src` type accepts
 only strings and cannot express the required safe value:
@@ -247,7 +247,6 @@ Encode dynamic pieces explicitly:
 
 ```ts
 import {
-  navigationUrl,
   pathSegment,
   queryValue,
   relativePath,
@@ -257,17 +256,19 @@ import {
 
 const page = relativePath("/products", pathSegment(id));
 const image = relativeResourcePath("/product-images", pathSegment(id), ".webp");
-const search = withQuery(navigationUrl("/search"), {q: queryValue(searchText)});
+const search = withQuery("/search", {q: queryValue(searchText)});
 ```
 
-Use `navigationUrlOrNull` or `resourceUrlOrNull` when an invalid optional URL should
-remove a link or resource.
+Use `validateUrlOrNull` when an invalid optional URL should remove a link or
+resource. Use `validateUrl` to validate a URL early and throw on invalid input.
+Both return ordinary strings when validation succeeds. The JSX runtime checks
+the URL again at the sink.
 
-These nullable variants cover only `navigationUrl` and `resourceUrl`. Builders such
-as `pathSegment`, `relativePath`, `relativeResourcePath`, and `withQuery` still throw;
-reject or normalize invalid dynamic pieces when reading request or stored data.
-Use the throwing builders when invalid stored application data is an error that should
-surface.
+`PathSegment` and `QueryValue` still record encoded dynamic pieces. `relativePath`
+and `relativeResourcePath` return ordinary strings. `withQuery` accepts an ordinary
+string and validates both the input and the resulting URL. These composed builders
+still throw; reject or normalize invalid dynamic pieces when reading request or
+stored data.
 
 ## JSON, JSON-LD, scripts, and styles
 

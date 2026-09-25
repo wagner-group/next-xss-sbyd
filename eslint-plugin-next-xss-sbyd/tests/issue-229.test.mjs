@@ -18,7 +18,7 @@ test("checked response brands survive helper returns, promises, aliases and let 
     'function checked(): PassiveResponse { return passiveResponse(Response.json({ok: true})); } export const GET = () => checked();',
     'async function checked(): Promise<PassiveResponse> { return passiveResponse(await fetch("https://example.test")); } export const GET = () => checked();',
     'function checked() { return passiveResponse(Response.json({ok: true})); } export async function GET() { return await checked(); }',
-    'import type {SafeNavigationUrl} from "next-xss-sbyd"; type ExtendedUrl = SafeNavigationUrl & {tag: string}; declare const url: ExtendedUrl; const accepted = url as SafeNavigationUrl;',
+    'import type {SafeHtml} from "next-xss-sbyd"; type ExtendedHtml = SafeHtml & {tag: string}; declare const html: ExtendedHtml; const accepted = html as SafeHtml;',
     'type Alias = PassiveResponse; declare const checked: Alias; export const GET = () => checked;',
     'type Alias = Pick<PassiveResponse, keyof PassiveResponse>; declare const checked: Alias; export const GET = () => checked;',
     'import type {PassiveResponse as Enforced} from "next-xss-sbyd/enforce"; declare const checked: Enforced; export const GET = () => checked;',

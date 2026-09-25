@@ -6,20 +6,20 @@ import remarkRehype from "remark-rehype";
 import {toJsxRuntime} from "hast-util-to-jsx-runtime";
 import rehypeSanitize from "rehype-sanitize";
 import {checkMarkdownSource, markdownSchema, remarkMarkdownLimits, rehypeMarkdownLimits} from "./internal/markdown-policy.js";
-import {navigationUrlOrNull, resourceUrlOrNull} from "./url.js";
+import {validateUrlOrNull} from "./url.js";
 
 export interface SafeMarkdownProps {
   children: string;
 }
 
 function MarkdownLink({href, title, children}: ComponentProps<"a">): ReactElement {
-  const url = navigationUrlOrNull(href ?? "");
+  const url = validateUrlOrNull(href ?? "");
   return url === null ? <>{children}</> : <a href={url} title={title} rel="nofollow noopener noreferrer">{children}</a>;
 }
 
 function MarkdownImage({src, alt, title}: ComponentProps<"img">): ReactElement {
   // HAST properties are strings; React also types src as Blob for app code.
-  const url = resourceUrlOrNull((src as string | undefined) ?? "");
+  const url = validateUrlOrNull((src as string | undefined) ?? "");
   return url === null ? <>{alt}</> : <img src={url} alt={alt} title={title} referrerPolicy="no-referrer" />;
 }
 

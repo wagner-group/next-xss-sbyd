@@ -1,14 +1,11 @@
 import type {
   SafeHtml,
-  SafeNavigationUrl,
-  SafeResourceUrl,
   SafeScript,
   SafeStyleSheet,
   TrustedScriptUrl,
 } from "next-xss-sbyd";
 import {
-  navigationUrlOrNull,
-  resourceUrlOrNull,
+  validateUrlOrNull,
   SafeJsonScript,
   SafeResponse,
   SafeScriptBlock,
@@ -24,14 +21,12 @@ const resourceUrl: TrustedScriptUrl = "javascript:alert(1)";
 SafeScriptBlock({script: "alert(1)"});
 SafeJsonScript({id: "state", data: {bad: undefined}});
 safeRenderToReadableStream(null, {bootstrapScripts: ["/raw.js"]});
-const requiredNavigation: SafeNavigationUrl = navigationUrlOrNull("/account");
-const requiredResource: SafeResourceUrl = resourceUrlOrNull("/avatar.png");
+const requiredUrl: string = validateUrlOrNull("/account");
 void [
   html,
   script,
   styleSheet,
   resourceUrl,
-  requiredNavigation,
-  requiredResource,
+  requiredUrl,
 ];
 void configureJsxGuard;

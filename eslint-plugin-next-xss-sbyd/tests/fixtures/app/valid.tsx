@@ -1,16 +1,12 @@
 import type {NextApiResponse} from "next";
-import {SafeBlock, SafeJsonScript, SafeResponse, formActionUrl, htmlEscape, navigationUrl, resourceUrl} from "next-xss-sbyd";
+import {SafeBlock, SafeJsonScript, SafeResponse, htmlEscape} from "next-xss-sbyd";
 import {safeRenderToString} from "next-xss-sbyd/render";
 import {trustedScriptUrl} from "next-xss-sbyd";
-import type {SafeNavigationUrl as ImportedNavigationUrl} from "next-xss-sbyd";
 
-type NavigationAlias = ImportedNavigationUrl;
-
-const navigation = navigationUrl("/account");
-const resource = resourceUrl("/avatar.png");
-const form = formActionUrl("/submit");
+const navigation = "/account";
+const resource = "/avatar.png";
+const form = "/submit";
 const trusted = trustedScriptUrl`https://cdn.example.test/app.js`;
-const aliasedNavigation: NavigationAlias = navigation;
 
 export function Valid() {
   async function serverAction() { "use server"; }
@@ -20,7 +16,6 @@ export function Valid() {
     <a href={navigation}>account</a>
     <a {...{href: navigation}}>spread account</a>
     <div {...{className: "harmless"}}>content</div>
-    <a href={aliasedNavigation}>aliased account</a>
     <img src={resource} />
     <form action={form} />
     <form action={serverAction} />

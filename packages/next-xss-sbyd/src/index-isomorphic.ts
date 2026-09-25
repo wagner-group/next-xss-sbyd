@@ -5,23 +5,17 @@ export type {SafeHtml, SafeScript, SafeStyleSheet} from "safevalues";
 export {htmlEscape} from "./html.js";
 
 export {
-  formActionUrl,
-  navigationUrl,
-  navigationUrlOrNull,
   pathSegment,
   queryValue,
   relativePath,
   relativeResourcePath,
-  resourceUrl,
-  resourceUrlOrNull,
+  validateUrl,
+  validateUrlOrNull,
   withQuery,
 } from "./url.js";
 export type {
   PathSegment,
   QueryValue,
-  SafeFormActionUrl,
-  SafeNavigationUrl,
-  SafeResourceUrl,
 } from "./url.js";
 export {
   readJsonScript,

@@ -8,5 +8,5 @@ test("SafeImage validates overrideSrc before Next forwards it", () => {
   assert.throws(() => renderToStaticMarkup(jsx(SafeImage, {
     src: "/safe.png", overrideSrc: "//evil.example/tracker.png", alt: "",
     width: 16, height: 16, unoptimized: true,
-  })), /resource URL/u);
+  })), /Invalid URL/u);
 });
