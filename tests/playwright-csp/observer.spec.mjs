@@ -238,8 +238,7 @@ test("FAIL initial violations in frames and popup retain identities", async ({pa
   await page.evaluate((url) => window.open(`${url}/initial`), server);
   const popup = await popupPromise;
   await popup.waitForLoadState();
-  // Chromium and Firefox may replace a same-origin placeholder document
-  // without rerunning context init scripts. Observation must fail closed.
+  // All three real initial violations must survive the opening flows.
   await csp.flush();
   expect(csp.violations()).toHaveLength(3);
   expect(new Set(csp.violations().map((record) => record.frameId)).size).toBe(3);

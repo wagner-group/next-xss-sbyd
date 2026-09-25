@@ -3,7 +3,7 @@ import type { CspAssertions, CspViolation, ExpectedCspViolation, NoncePolicyOpti
 import { installCspObserver, redactCspURL, type DocumentObserver, type ObserverMessage } from "./playwright-observer.js";
 import { assertScriptPolicy } from "./playwright-policy.js";
 
-interface NavigationEvidence { request: Request; knownDocuments: Set<string> }
+interface NavigationEvidence { request: Request; order: number; knownDocuments: Set<string> }
 
 interface ObservedDocument {
   id: string;
@@ -17,7 +17,7 @@ interface ObservedDocument {
 const limitations = [
   "DOM securitypolicyviolation events only; workers and service workers are not observed.",
   "Independent browser contexts and browser-internal documents are not covered.",
-  "Initial popup/frame replacements without fresh initialization are rejected; initial-popup response evidence may be unavailable.",
+  "Document replacements without fresh initialization are rejected.",
   "An event lost before dispatch or delivery during document replacement or closure may be undetectable.",
   "Flush covers a bounded quiet interval; later events and final context closure are not certified.",
   "This is a regression aid, not an XSS scanner or protection against observer tampering.",
@@ -32,6 +32,7 @@ export class CspCollector implements CspAssertions {
   private readonly pages = new Map<Page, string>();
   private readonly frames = new Map<Frame, string>();
   private readonly responses = new Map<Frame, Response>();
+  private readonly initialResponses = new Set<Response>();
   private readonly requests = new Map<Frame, NavigationEvidence>();
   private readonly navigationEvidence = new WeakMap<Request, NavigationEvidence>();
   private readonly navigationTasks = new Set<Promise<void>>();
@@ -39,6 +40,7 @@ export class CspCollector implements CspAssertions {
   private readonly key: string;
   private readonly binding: string;
   private lastArrival = 0;
+  private navigationOrder = 0;
   private expecting = false;
   private expectationDocument?: { frame: Frame; token: string; replaced: boolean };
   private disposed = false;
@@ -61,7 +63,7 @@ export class CspCollector implements CspAssertions {
 
   private readonly onRequest = (request: Request): void => {
     if (!request.isNavigationRequest()) return;
-    const evidence = { request, knownDocuments: new Set(this.documents.keys()) };
+    const evidence = { request, order: ++this.navigationOrder, knownDocuments: new Set(this.documents.keys()) };
     this.navigationEvidence.set(request, evidence);
     // The initial popup request can precede creation of its Frame in Playwright.
     try { this.requests.set(request.frame(), evidence); } catch { /* Associate at response time. */ }
@@ -71,14 +73,29 @@ export class CspCollector implements CspAssertions {
     try {
       const frame = response.frame();
       const evidence = this.navigationEvidence.get(response.request());
-      if (!this.requests.has(frame) && evidence) this.requests.set(frame, evidence);
+      const current = this.requests.get(frame);
+      if (!evidence || (current && evidence.order < current.order)) return;
+      // A popup can start its next navigation before Playwright creates its Frame.
+      this.requests.set(frame, evidence);
       this.responses.set(frame, response);
-    } catch { /* Without a frame, this response cannot provide reliable assertion evidence. */ }
+    } catch {
+      // Playwright supplies the initial popup's Frame when it emits the Page.
+      this.initialResponses.add(response);
+    }
   };
   private readonly onPage = (page: Page): void => {
     this.pageId(page);
     page.on("crash", this.onCrash);
     page.on("framenavigated", this.onNavigation);
+    for (const response of this.initialResponses) {
+      let frame: Frame;
+      try { frame = response.frame(); } catch { continue; }
+      if (frame.page() !== page) continue;
+      this.initialResponses.delete(response);
+      this.onResponse(response);
+      // The first commit precedes the page event, so framenavigated was missed.
+      this.onNavigation(frame);
+    }
   };
   private readonly onClose = (): void => { this.error("observed context closed before collection completed"); };
   private readonly onCrash = (page: Page): void => {
@@ -119,7 +136,7 @@ export class CspCollector implements CspAssertions {
     if (message.kind === "ready" && this.expectationDocument?.frame === frame &&
       this.expectationDocument.token !== message.documentId) this.expectationDocument.replaced = true;
     if (message.kind === "unsupported") {
-      this.error(`document replaced without before-script initialization (${this.frameId(frame)}, ${redactCspURL(message.documentURL)})`);
+      this.error(`CSP monitoring did not start before this document's scripts; initial violations may have been missed (${this.frameId(frame)}, ${redactCspURL(message.documentURL)})`);
       return;
     }
     let doc = this.documents.get(message.documentId);
@@ -215,7 +232,7 @@ export class CspCollector implements CspAssertions {
     const token = await this.documentToken(page.mainFrame());
     const doc = this.documents.get(token)!;
     if (!doc.response || !/^https?:/.test(doc.response.url())) {
-      throw new Error("Nonce assertion requires reliable HTTP(S) response evidence for the current document");
+      throw new Error("Cannot identify the HTTP response that created this document; its CSP header was not checked");
     }
     // Errors from Playwright can contain HTML or selector input. Keep this boundary private.
     let scripts: { isScript: boolean; nonce: string }[];
@@ -312,6 +329,7 @@ export class CspCollector implements CspAssertions {
       page.off("framenavigated", this.onNavigation);
     }
     this.responses.clear();
+    this.initialResponses.clear();
     this.requests.clear();
     this.documents.clear();
     this.nonces.clear();

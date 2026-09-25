@@ -42,7 +42,7 @@ export function installCspObserver({ binding, key }: { binding: string; key: str
   function newDocumentId(): string {
     return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
   }
-  const documentId = newDocumentId();
+  let documentId = newDocumentId();
   let localSequence = 0;
   let failed = false;
   let pending = Promise.resolve();
@@ -54,9 +54,10 @@ export function installCspObserver({ binding, key }: { binding: string; key: str
   function message(kind: ObserverMessage["kind"]): ObserverMessage {
     return { kind, documentId, localSequence, documentURL: redact(location.href) };
   }
-  // Some browser popup/frame paths replace the initial Document without rerunning
-  // init scripts. Surviving Window listeners cannot guarantee initial CSP capture;
-  // detect that unsupported transition instead of silently initializing late.
+  // Initial same-origin popup/frame navigations can reuse the Window and its
+  // listeners without rerunning init scripts. Keep observing that transition,
+  // assigning a fresh identity when the new Document first becomes visible.
+  let initialDocument = document.URL === "about:blank";
   // document.open()/setContent also removes listeners from an isolated utility world.
   // Probe the listener itself instead of monkey-patching document.open().
   let listening = false;
@@ -70,27 +71,47 @@ export function installCspObserver({ binding, key }: { binding: string; key: str
       if (!listening) throw new Error("CSP observer document was replaced");
       if (!ensureDocument()) throw new Error("CSP observer missing initialization in replacement document");
       // Include an explicit runner acknowledgement, not just a browser-side array read.
+      const token = documentId;
       send(message("checkpoint"));
       await pending;
-      if (failed || state.document !== document) throw new Error("CSP observer acknowledgement failed");
-      return documentId;
+      if (failed || token !== documentId || target[key] !== state || state.document !== document) throw new Error("CSP observer acknowledgement failed");
+      return token;
     },
   };
   function ensureDocument(): boolean {
+    // WebKit may run a fresh init script while listeners from the initial blank
+    // document survive. Only the current observer may report native events.
+    if (target[key] !== state) return false;
     if (state.document === document) return true;
+    if (initialDocument) {
+      initialDocument = false;
+      documentId = newDocumentId();
+      state.documentId = documentId;
+      state.document = document;
+      localSequence = 0;
+      send(message("ready"));
+      return true;
+    }
     if (!failed) send(message("unsupported"));
     failed = true;
     return false;
   }
   target[key] = state;
   globalThis.addEventListener("DOMContentLoaded", ensureDocument);
-  globalThis.addEventListener("securitypolicyviolation", function record(event) {
-    if (!ensureDocument()) return;
+  const seen = new WeakSet<SecurityPolicyViolationEvent>();
+  function record(event: SecurityPolicyViolationEvent): void {
+    if (!ensureDocument() || seen.has(event)) return;
+    seen.add(event);
     localSequence++;
     send({ ...message("event"), documentURL: redact(event.documentURI),
       effectiveDirective: event.effectiveDirective || "", disposition: event.disposition,
       blockedURI: redact(event.blockedURI), sourceURL: redact(event.sourceFile),
       line: event.lineNumber || 0, column: event.columnNumber || 0 });
-  }, true);
+  }
+  // Chromium initial same-origin popups deliver CSP events to surviving bubble
+  // listeners but skip surviving capture listeners. Retain capture elsewhere to
+  // observe before application handlers, deduplicating only the same native event.
+  globalThis.addEventListener("securitypolicyviolation", record, true);
+  globalThis.addEventListener("securitypolicyviolation", record);
   send(message("ready"));
 }

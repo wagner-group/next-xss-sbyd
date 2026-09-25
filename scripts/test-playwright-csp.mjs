@@ -61,13 +61,25 @@ async function inspect(suite) {
             assert.equal(artifact.violations.length, 2);
             assert.deepEqual(artifact.expectedSequences, [1, 2]);
           }
-          if (/initial violations in frames/.test(spec.title)) {
-            if (test.projectName === "webkit") {
-              assert.equal(artifact.violations.length, 3);
+          if (/initial document |initial violations in frames/.test(spec.title)) {
+            assert.deepEqual(artifact.observationErrors, [], `${test.projectName}: ${spec.title}`);
+            const expectedCount = /initial violations in frames/.test(spec.title) ? 3 : spec.title.startsWith("FAIL ") ? 1 : 0;
+            assert.equal(artifact.violations.length, expectedCount, `${test.projectName}: ${spec.title}`);
+            if (expectedCount) {
+              assert.equal(result.errors.length, 1, "Only the automatic CSP teardown rejection may fail");
+              assert.match(result.errors[0].message, new RegExp(`^Error: Unexpected CSP violations: ${expectedCount}\\n`));
+            }
+            if (expectedCount === 3) {
               assert.equal(new Set(artifact.violations.map((record) => record.frameId)).size, 3);
               assert.equal(new Set(artifact.violations.map((record) => record.pageId)).size, 2);
-            } else {
-              assert.ok(artifact.observationErrors.some((error) => /document|initialization/i.test(error)), "Document replacement must fail observation explicitly");
+            }
+          }
+          if (/initial popup nonce/.test(spec.title)) {
+            assert.deepEqual(artifact.observationErrors, []);
+            assert.deepEqual(artifact.violations, []);
+            if (spec.title.startsWith("FAIL ")) {
+              assert.equal(result.errors.length, 1);
+              assert.match(details, /Nonce policy assertion requires an enforcing Content-Security-Policy response header/);
             }
           }
           if (/initial violation in noopener/.test(spec.title)) {

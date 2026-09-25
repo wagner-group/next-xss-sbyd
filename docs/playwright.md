@@ -36,9 +36,9 @@ test("preferences remain interactive", async ({page}) => {
 ```
 
 Set `use.baseURL` in `playwright.config.ts` to the application under test. Observation
-starts before the context's first page and attempts to initialize each tab, popup,
-and frame, including cross-origin frames. Some initial popup/frame documents cannot
-be observed reliably and fail the test; see the browser limitation below. Tests fail at teardown
+starts before the context's first page and observes tabs, ordinary popups (including
+those using `window.opener`), `noopener` popups, and same-origin and cross-origin
+frames from their initial scripts. Tests fail at teardown
 on unexpected enforcing **or report-only** violations even without requesting `csp`.
 A report-only violation signals incompatibility; it does not mean execution was blocked.
 
@@ -205,27 +205,19 @@ initialization, failed acknowledgements, observed sequence gaps, page crashes, a
 collection timeouts fail observation. Teardown collects and reports failures even
 when the test body has already failed.
 
-### Initial popup and frame limitation
+### Popups and frames
 
-With the pinned Playwright browsers, Chromium and Firefox can replace an initial
-same-origin popup or frame document without rerunning the context initialization
-script. A listener surviving on the window cannot guarantee collection from the new
-document: an actual parser-triggered CSP violation was lost in Chromium testing.
-The fixture rejects these detected replacements as observation errors. It does not
-report successful coverage for them.
+Ordinary popups and `noopener` popups are checked on their first page load; no extra
+navigation or change to the application's opening behavior is needed. Initial
+same-origin and cross-origin frame violations are collected as well. Browser tests
+verify that the initial unauthorized script is blocked, its violation is recorded
+exactly once, and clean opening flows pass in Chromium, Firefox, and WebKit.
 
-For controlled test pages, intentionally opening with
-`window.open(url, "_blank", "noopener")` initialized observation and captured the
-initial violation in the Chromium check. This is not suitable for flows that need
-`window.opener`. Another controlled setup is to open a blank document, await
-`csp.flush()`, then explicitly navigate it. The fixture never changes the application's
-popup semantics; separately test the application's actual opening flow and treat
-an observation error as unavailable coverage.
-
-An initial popup response can also lack reliable Playwright frame evidence.
-`assertNoncePolicy` rejects that response association. An explicit subsequent full
-navigation provides response evidence for a header check; it does not retroactively
-verify the initial document.
+`assertNoncePolicy` also checks the popup's first HTTP response. The fixture waits
+for Playwright to associate that response with its frame, then matches the exact
+request and document. It does not guess from URLs: simultaneous popups at the same
+URL can have different nonces. Tests cover those popups, redirects, reloads, and
+HTTP error responses.
 
 ### Artifacts and remaining coverage limits
 

@@ -6,6 +6,11 @@ export async function startServer() {
   const server = createServer((request, response) => {
     const url = new URL(request.url, "http://localhost");
     const mode = url.pathname.slice(1);
+    if (mode === "redirect") {
+      response.writeHead(302, {Location: "/strict"});
+      response.end();
+      return;
+    }
     const nonce = mode === "download" ? url.searchParams.get("nonce") : mode === "reuse" ? "cmV1c2VkLW5vbmNl" : randomBytes(18).toString("base64");
     const strict = `script-src 'nonce-${nonce}' 'strict-dynamic'; object-src 'none'; base-uri 'self'`;
     let policy = strict;
@@ -27,7 +32,7 @@ export async function startServer() {
     if (mode === "download") response.setHeader("Content-Disposition", 'attachment; filename="download.html"');
     if (mode === "not-found") response.statusCode = 404;
     response.setHeader("Content-Type", mode === "download" ? "application/octet-stream" : "text/html");
-    response.end(`<!doctype html><html><head>${mode === "meta" ? `<meta http-equiv="Content-Security-Policy" content="${strict}">` : ""}</head><body><h1>Ready</h1><script id="authorized" nonce="${mode === "mismatch" ? "d3Jvbmc=" : nonce}">document.documentElement.dataset.ready='yes'</script><button id="attack">Attack</button>${mode === "initial" || mode === "report" ? "<script>document.documentElement.dataset.secretScript='SCRIPT_CONTENT_SECRET'</script>" : ""}</body></html>`);
+    response.end(`<!doctype html><html><head>${mode === "meta" ? `<meta http-equiv="Content-Security-Policy" content="${strict}">` : ""}</head><body><h1>Ready</h1><script id="authorized" nonce="${mode === "mismatch" ? "d3Jvbmc=" : nonce}">document.documentElement.dataset.ready='yes';${mode === "self-navigation" ? "location.replace('/strict')" : ""}</script><button id="attack">Attack</button>${mode === "initial" || mode === "report" ? "<script>document.documentElement.dataset.secretScript='SCRIPT_CONTENT_SECRET'</script>" : ""}</body></html>`);
   });
   await new Promise((resolve) => server.listen(0, "0.0.0.0", resolve));
   return {url: `http://127.0.0.1:${server.address().port}`, close: () => new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()))};
