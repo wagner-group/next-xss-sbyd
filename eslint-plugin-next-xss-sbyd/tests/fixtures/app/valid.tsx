@@ -1,7 +1,7 @@
 import type {NextApiResponse} from "next";
 import {SafeBlock, SafeJsonScript, SafeResponse, formActionUrl, htmlEscape, navigationUrl, resourceUrl} from "next-xss-sbyd";
 import {safeRenderToString} from "next-xss-sbyd/render";
-import {trustedResourceUrl} from "safevalues";
+import {trustedScriptUrl} from "next-xss-sbyd";
 import type {SafeNavigationUrl as ImportedNavigationUrl} from "next-xss-sbyd";
 
 type NavigationAlias = ImportedNavigationUrl;
@@ -9,7 +9,7 @@ type NavigationAlias = ImportedNavigationUrl;
 const navigation = navigationUrl("/account");
 const resource = resourceUrl("/avatar.png");
 const form = formActionUrl("/submit");
-const trusted = trustedResourceUrl`https://cdn.example.test/app.js`;
+const trusted = trustedScriptUrl`https://cdn.example.test/app.js`;
 const aliasedNavigation: NavigationAlias = navigation;
 
 export function Valid() {

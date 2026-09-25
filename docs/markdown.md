@@ -20,8 +20,9 @@ props throw at runtime as well as failing TypeScript checks. Put layout, styling
 and accessibility attributes on your own wrapper. There are no plugins, custom
 components, schemas, URL callbacks, raw-HTML switches or trusted-content modes.
 
-The fixed CommonMark renderer uses `react-markdown` with `skipHtml: true`, followed
-by a private `rehype-sanitize` schema and fixed link/image renderers. Raw HTML tokens
+The fixed CommonMark renderer uses a synchronous unified pipeline: `remark-parse`,
+`remark-rehype` with raw HTML disabled, a private `rehype-sanitize` schema, and
+`hast-util-to-jsx-runtime` with fixed link/image renderers. Raw HTML tokens
 are ignored: `<b>word</b>` leaves `word` as ordinary text, while an HTML block can
 be ignored entirely. Markdown code fences remain escaped code text. Source such as
 `{globalThis.example = true}` is text; Markdown conversion does not evaluate MDX
@@ -47,11 +48,19 @@ There is no content-controlled `target` or `srcSet`.
 The separate `next-xss-sbyd/markdown` entry point keeps Markdown dependencies out
 of the core import graph. It does not depend on DOMPurify or JSDOM; its Node and
 Edge paths do not require a DOM.
-The component declares a Client Component boundary because upstream `react-markdown`
-imports React hooks. Server Components can render it with source text as the prop.
-It still prerenders on Node and Edge before hydration; the Next 14/15/16 fixtures
-exercise those paths and browser updates. Source text can cross an RSC or JSON
-boundary; render it with `SafeMarkdown` where it will be displayed.
+The component has no Client Component boundary and imports no React hooks. Server
+Components render it entirely on the server without shipping the parser or source
+text to the browser. Importing it from a Client Component includes the parser in
+that client bundle and supports hydration and browser updates. The Next 14/15/16
+fixtures exercise both usages on Node and Edge. Source text can cross an RSC or
+JSON boundary when needed; render it where it will be displayed.
+
+The Markdown packages remain direct runtime dependencies, with compatible caret
+ranges. They are installed with the package, even when the Markdown subpath is not
+used. Keeping them required makes that public entry point work without a separate
+installation step; optional peers would shift installation and version management
+to every Markdown consumer. The separate entry point isolates their import and
+bundle cost, not their installation cost.
 
 ### Next 14 with a custom Babel configuration
 
@@ -77,16 +86,37 @@ browsers before adopting it. The Next 15/16 SWC fixtures need no Babel override.
 
 ### Resource limits and fallbacks
 
-The renderer rejects input above **256 KiB of UTF-8**, before parsing, and trees
-above **50,000 nodes** or **128 levels of depth** after parsing. Limit violations
-throw `RangeError`; invalid props or source types throw `TypeError`. Limits apply in
-Node, browsers and Edge. These initial engineering limits are not measured parser
-CPU or memory guarantees: post-parse limits cannot prevent work already done by
-the parser. Bound incoming requests and catch rendering errors at your application
-boundary. Use an escaped-text or error fallback, never an HTML sink:
+Before parsing, a linear scan rejects inputs above **32 KiB of UTF-8**, above
+**1,024 ASCII punctuation characters across the entire document**, or with more
+than **128 leading container markers** or **128 indentation columns** on any line
+(tabs count as four columns). Container markers include block quotes and unordered
+or ordered lists. The punctuation budget counts all ASCII punctuation, including
+brackets, emphasis, backticks, escapes, URLs and fenced code; it deliberately does
+not attempt to parse Markdown. Splitting attacks across paragraphs cannot reset
+that budget. Large code samples and punctuation-heavy prose may require a fallback.
+
+After parsing, both Markdown and HTML trees are limited to **50,000 nodes** and
+**128 levels of depth** before downstream recursive transforms. Those checks are
+defense in depth; they do not interrupt parsing. Limit violations throw
+`RangeError`; invalid props/source throw `TypeError`. All checks apply on Node,
+Edge and in browsers.
+
+These bounds reject the reported container/delimiter CPU attacks before parsing.
+The regression corpus requires each hostile or scaled example to finish within
+500 ms on the test machine, with a separate process deadline to kill a hung parser.
+That is a regression threshold, **not a hard CPU or memory guarantee** for every
+input or platform. **Do not run SafeMarkdown on Edge or on an anonymous request's
+synchronous rendering path when a hard latency budget is required.** Parse such
+content at ingestion or in an isolated worker with an externally enforced deadline
+and serve the reviewed result. Bound request sizes and request rates as well.
+
+A Client Component render error requires a React **error boundary**; a `try/catch`
+around JSX creation does not catch it. React error boundaries do not catch SSR
+errors: server rendering needs the framework's server error handling or an error
+handler around the actual rendering operation. The Next fixtures exercise a client
+error boundary. Use escaped text or an error fallback, never an HTML sink:
 
 ```tsx
-// An application error boundary can show this when Markdown rendering fails.
 export function ArticleFallback() {
   return <p>This article could not be displayed.</p>;
 }
@@ -203,7 +233,9 @@ so configuration checks enforce the Markdown preset at the selected setup stage:
 
 Keep any existing `stage` and other configuration fields. At `lint`/`runtime`,
 configuration checks require the warning preset; at `recommended` and later,
-they require the error preset. Run the normal checks and inventory before enforcing:
+they require the error preset for known renderer/execution boundaries. The separate
+`markdown-loader-coverage` rule stays a warning at every stage and emits one
+diagnostic per unresolved loader. Run the normal checks and inventory before enforcing:
 
 ```sh
 npx next-xss-sbyd check-config .
@@ -219,7 +251,8 @@ code. Neither rule automatically removes options or plugins.
 
 Start with the audit's Markdown inventory and migrate one rendering site at a time.
 Review renderer imports, configuration sites, raw-HTML plugins, HTML sinks, MDX
-execution and unknown wrappers. The inventory includes `.md`/`.mdx` discovery;
+execution and unknown wrappers. The audit inventory warning requires the package opt-in; explicit inventory remains
+available without it. The inventory includes `.md`/`.mdx` discovery;
 finding those files does not analyze executable MDX contents. Dynamic loading,
 unknown wrappers and configuration remain coverage limitations. Preserve narrow
 file-scoped exceptions with justification, owner and tests, and retain the existing

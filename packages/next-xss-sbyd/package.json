@@ -72,6 +72,10 @@
       "types": "./dist/route-handler.d.ts",
       "default": "./dist/route-handler.js"
     },
+    "./object-url": {
+      "types": "./dist/object-url.d.ts",
+      "default": "./dist/object-url.js"
+    },
     "./safe-html-iframe": {
       "react-server": {
         "types": "./dist/safe-html-iframe-server.d.ts",
@@ -131,10 +135,13 @@
   "dependencies": {
     "@braintree/sanitize-url": "^7.1.2",
     "dompurify": "^3.4.15",
+    "hast-util-to-jsx-runtime": "^2.3.6",
     "jsdom": "^30.1.1",
     "parse5": "^8.0.1",
-    "react-markdown": "10.1.0",
-    "rehype-sanitize": "6.0.0",
-    "safevalues": "^1.2.0"
+    "rehype-sanitize": "^6.0.0",
+    "remark-parse": "^11.0.0",
+    "remark-rehype": "^11.1.2",
+    "safevalues": "^1.2.0",
+    "unified": "^11.0.5"
   }
 }

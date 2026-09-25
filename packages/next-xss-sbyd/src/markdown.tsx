@@ -1,9 +1,11 @@
-"use client";
-
 import type {ComponentProps, ReactElement} from "react";
-import Markdown from "react-markdown";
+import {Fragment, jsx, jsxs} from "react/jsx-runtime";
+import {unified} from "unified";
+import remarkParse from "remark-parse";
+import remarkRehype from "remark-rehype";
+import {toJsxRuntime} from "hast-util-to-jsx-runtime";
 import rehypeSanitize from "rehype-sanitize";
-import {markdownSchema, remarkMarkdownLimits, rehypeMarkdownLimits} from "./internal/markdown-policy.js";
+import {checkMarkdownSource, markdownSchema, remarkMarkdownLimits, rehypeMarkdownLimits} from "./internal/markdown-policy.js";
 import {navigationUrlOrNull, resourceUrlOrNull} from "./url.js";
 
 export interface SafeMarkdownProps {
@@ -27,15 +29,22 @@ function MarkdownList({start, children}: ComponentProps<"ol">): ReactElement {
   return <ol start={bounded}>{children}</ol>;
 }
 
-// react-markdown's URL default differs from our shared policy (e.g. tel:).
-// Only the fixed renderers above consume URLs, validating before creating props.
-function parsedUrl(value: string): string { return value; }
+// Freeze a closed, synchronous processor; callers cannot supply transforms.
+// remark-rehype drops raw HTML because allowDangerousHtml remains false.
+const processor = unified()
+  .use(remarkParse)
+  .use(remarkMarkdownLimits)
+  .use(remarkRehype)
+  .use(rehypeMarkdownLimits)
+  .use(rehypeSanitize, markdownSchema)
+  .freeze();
 
 /**
  * Render untrusted CommonMark with a fixed HTML/URL policy and no plugins/options.
  * Raw HTML is ignored. Invalid links retain text; invalid images retain alt text.
- * Throws TypeError for unsupported props/source and RangeError above 256 KiB
- * UTF-8, 50,000 parsed nodes, or depth 128. These limits are not a CPU timeout.
+ * Throws TypeError for unsupported props/source and RangeError above 32 KiB
+ * UTF-8 or the bounded syntax budget before parsing, or above 50,000 parsed
+ * nodes or depth 128 after parsing. These limits are not a CPU timeout.
  */
 export function SafeMarkdown(props: SafeMarkdownProps): ReactElement {
   for (const key of Object.keys(props)) {
@@ -43,11 +52,10 @@ export function SafeMarkdown(props: SafeMarkdownProps): ReactElement {
   }
   const {children} = props;
   if (typeof children !== "string") throw new TypeError("SafeMarkdown requires a string child");
-  // The cheap code-unit guard avoids allocating an unbounded encoding buffer.
-  if (children.length > 262144 || new TextEncoder().encode(children).length > 262144) {
-    throw new RangeError("SafeMarkdown exceeds 256 KiB of UTF-8 input");
-  }
-  return <Markdown skipHtml remarkPlugins={[remarkMarkdownLimits]}
-    rehypePlugins={[rehypeMarkdownLimits, [rehypeSanitize, markdownSchema]]}
-    urlTransform={parsedUrl} components={{a: MarkdownLink, img: MarkdownImage, ol: MarkdownList}}>{children}</Markdown>;
+  checkMarkdownSource(children);
+  const tree = processor.runSync(processor.parse(children));
+  return toJsxRuntime(tree, {
+    Fragment, jsx, jsxs,
+    components: {a: MarkdownLink, img: MarkdownImage, ol: MarkdownList},
+  });
 }

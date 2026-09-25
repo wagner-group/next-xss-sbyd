@@ -75,7 +75,6 @@ export async function inventoryMarkdown(root: string): Promise<MarkdownInventory
   const findings: MarkdownInventoryFinding[] = [];
   const extensions = new Set([...SOURCE_EXTENSIONS, ".md", ".mdx"]);
   for (const file of await sourceFiles(root, extensions)) {
-    const source = await readFile(file, "utf8");
     const name = relative(root, file);
     if (/\.mdx?$/iu.test(file)) {
       findings.push({file: name, line: 1, column: 1, category: "document", detail: file.endsWith(".mdx")
@@ -83,13 +82,21 @@ export async function inventoryMarkdown(root: string): Promise<MarkdownInventory
         : "Markdown discovered; trace its consumer and renderer configuration."});
       continue;
     }
+    const source = await readFile(file, "utf8");
     const patterns: Array<[MarkdownInventoryFinding["category"], RegExp]> = [
-      ["renderer-or-pipeline", /["'](?:react-markdown|markdown-to-jsx|marked|markdown-it|remark(?:-[\w-]+)?|rehype(?:-[\w-]+)?|unified|@mdx-js\/mdx|@next\/mdx|next-mdx-remote)(?:\/[^"']*)?["']/gu],
-      ["configuration", /\b(?:remarkPlugins|rehypePlugins|remarkRehypeOptions|urlTransform|skipHtml|allowDangerousHtml|rehypeRaw|mdxOptions|forceBlock|overrides)\b|\.use\s*\(/gu],
-      ["html-sink", /\b(?:dangerouslySetInnerHTML|innerHTML|outerHTML|insertAdjacentHTML|SafeBlock|sanitizeUserHtml)\b/gu],
-      ["unknown-wrapper", /<\s*(?:[A-Z][\w.]*)?(?:Markdown|MDX)[\w.]*/gu],
+      ["renderer-or-pipeline", /["'](?:react-markdown|markdown-to-jsx|marked|markdown-it|remark(?:-[\w-]+)?|rehype(?:-[\w-]+)?|unified|@mdx-js\/mdx|@next\/mdx|next-mdx-remote(?:-client)?|mdx-bundler)(?:\/[^"']*)?["']/gu],
+      ["configuration", /\b(?:remarkPlugins|rehypePlugins|remarkRehypeOptions|urlTransform|skipHtml|allowDangerousHtml|rehypeRaw|mdxOptions|forceBlock)\b/gu],
+      ["html-sink", /\b(?:dangerouslySetInnerHTML|innerHTML|outerHTML|insertAdjacentHTML)\b/gu],
       ["coverage", /\b(?:import|require)\s*\(\s*(?![\s"'`])/gu],
     ];
+    // Require a self-closing tag or a matching closing tag, so generic type
+    // arguments such as Array<MarkdownNode> are not treated as JSX wrappers.
+    for (const match of source.matchAll(/<\s*((?:[A-Z][\w.]*)?(?:Markdown|MDX)[\w.]*)\b[^<>]*>/gu)) {
+      const tag = match[1]!;
+      if (tag.split(".").at(-1) === "SafeMarkdown") continue;
+      if (!/\/\s*>$/u.test(match[0]) && !source.includes(`</${tag}>`, match.index + match[0].length)) continue;
+      findings.push({file: name, ...lineAndColumn(source, match.index), category: "unknown-wrapper", detail: match[0]});
+    }
     for (const [category, pattern] of patterns) {
       for (const match of source.matchAll(pattern)) findings.push({
         file: name, ...lineAndColumn(source, match.index), category,

@@ -87,9 +87,9 @@ async function verify(browser, suffix) {
       {children: 'source', components: {}}, {children: 'source', rehypePlugins: []},
       {children: 'source', urlTransform: 'unsafe'}, {children: 'source', skipHtml: false},
       {children: 'source', dangerouslySetInnerHTML: {__html: '<img src=/attack>'}},
-      {children: null}, {children: 'a'.repeat(262145)}, {children: '😀'.repeat(65537)},
-      {children: '> '.repeat(129) + 'deep'}, {children: 'x\n\n'.repeat(25000)},
-      {children: 'x\n\n'.repeat(20000)},
+      {children: null}, {children: 'a'.repeat(32769)}, {children: '😀'.repeat(8193)},
+      {children: '> '.repeat(129) + 'deep'}, {children: '['.repeat(1025)},
+      {children: '*`a`*'.repeat(300)},
     ];
     for (const props of invalid) {
       await page.evaluate(props => window.markdownHarness.update(props), props);

@@ -73,23 +73,36 @@ test('SafeMarkdown rejects configuration overrides and non-string source before 
   }
 });
 
-test('SafeMarkdown bounds UTF-8 input, parsed node count, and nesting', () => {
-  assert.doesNotThrow(() => render('a'.repeat(262144)));
-  assert.doesNotThrow(() => render('😀'.repeat(65536)));
-  assert.throws(() => render('a'.repeat(262145)), /SafeMarkdown.*256 KiB/);
-  assert.throws(() => render('😀'.repeat(65537)), /SafeMarkdown.*256 KiB/);
-  assert.throws(() => render('x\n\n'.repeat(25000)), /SafeMarkdown.*50,000 nodes/);
-  // HAST introduces inter-element text nodes; check the limit after conversion too.
-  assert.throws(() => render('x\n\n'.repeat(20000)), /SafeMarkdown.*50,000 nodes/);
+test('SafeMarkdown bounds UTF-8 input and syntax before parsing', () => {
+  assert.doesNotThrow(() => render('a'.repeat(32768)));
+  assert.doesNotThrow(() => render('😀'.repeat(8192)));
+  assert.throws(() => render('a'.repeat(32769)), /SafeMarkdown.*32 KiB/);
+  assert.throws(() => render('😀'.repeat(8193)), /SafeMarkdown.*32 KiB/);
+  assert.doesNotThrow(() => render('!'.repeat(1024)));
+  assert.throws(() => render('!'.repeat(1025)), /SafeMarkdown.*1,024/);
   assert.throws(() => render('> '.repeat(129) + 'deep'), /SafeMarkdown.*128/);
+  assert.throws(() => render('- '.repeat(129) + 'deep'), /SafeMarkdown.*128/);
+  assert.throws(() => render('1. '.repeat(129) + 'deep'), /SafeMarkdown.*128/);
+  assert.throws(() => render(' '.repeat(129) + 'code'), /SafeMarkdown.*indentation/);
+  assert.throws(() => render('\t'.repeat(33) + 'code'), /SafeMarkdown.*indentation/);
   assert.doesNotThrow(() => render('> '.repeat(120) + 'readable'));
+  assert.doesNotThrow(() => render(' '.repeat(128) + 'code'));
+  assert.doesNotThrow(() => render('\t'.repeat(32) + 'code'));
+  assert.doesNotThrow(() => render('-\n+\n*\n1.\n2)\n3) item'));
+  assert.doesNotThrow(() => render('1234567890. text\r\n+ bullet\n* item\n- item'));
+  assert.throws(() => render(Array.from({length: 150}, (_, i) => '  '.repeat(i) + '* a\n').join('')), /SafeMarkdown.*indentation/);
+  assert.doesNotThrow(() => render('x\n\n'.repeat(10000)));
+  // The 50,000-node backstops cannot be reached through the smaller input/syntax
+  // budgets with this closed parser profile; exercising them requires synthetic
+  // trees, which would not test the public rendering behavior.
+  // Tree depth remains a separate guard: list nesting creates both list/item nodes.
+  assert.throws(() => render('- '.repeat(70) + 'deep'), /SafeMarkdown.*128/);
 });
 
 test('HTML migration sanitizes the final output including plugin-generated markup', async () => {
   // Real HTML parser output plus a downstream transformation; the final sanitizer
   // is the boundary even if a parser/plugin accepts unsafe source or emits HTML.
-  const {default: Markdown} = await import('react-markdown');
-  const rendered = renderToStaticMarkup(createElement(Markdown, {children: '**article**'}));
+  const rendered = render('**article**');
   const transformed = rendered + '<img src="/pixel.png" onerror="alert(1)"><script>alert(1)</script><a href="javascript:alert(1)">bad link</a>';
   const html = renderToStaticMarkup(createElement(SafeBlock, {html: sanitizeUserHtml(transformed)}));
   const document = new JSDOM(html).window.document;

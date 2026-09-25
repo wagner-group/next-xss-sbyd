@@ -56,6 +56,10 @@ export async function verifyMarkdown(browser, origin, label) {
         await page.getByRole("button", {name: "Update Markdown"}).click();
         await page.locator("#client-markdown h1").first().filter({hasText: "Updated document"}).waitFor();
         await assertMarkdown(page, "#client-markdown");
+        await page.getByRole("button", {name: "Exceed Markdown limit"}).click();
+        await page.locator("#markdown-error-fallback").waitFor();
+        assert.equal(await page.locator("#markdown-error-fallback").textContent(), "Cannot display <img src=x onerror=alert(1)>");
+        assert.equal(await page.locator("#markdown-limit-example img").count(), 0);
         assert.equal(await page.evaluate(() => globalThis.markdownAttacked), undefined);
         assert.deepEqual(hostileRequests, [], `${label}: discarded content made requests`);
         assert.deepEqual(errors, [], `${label}: Markdown hydration/runtime errors`);

@@ -3,13 +3,9 @@ import {staticString, type RuleContext} from "./utils.js";
 
 /** Checks module boundaries rather than guessing whether a downstream call is safe. */
 export function markdownImports(
-  context: RuleContext<"boundary" | "coverage">,
-  matches: (source: string, imported?: string) => boolean,
+  context: Pick<RuleContext<string>, "sourceCode">,
+  report: (node: TSESTree.Node, source: string | null, imported?: string) => void,
 ): TSESLint.RuleListener {
-  function report(node: TSESTree.Node, source: string | null, imported?: string): void {
-    if (source === null) context.report({node, messageId: "coverage"});
-    else if (matches(source, imported)) context.report({node, messageId: "boundary", data: {source}});
-  }
   return {
     ImportDeclaration(node) {
       if (node.importKind === "type") return;

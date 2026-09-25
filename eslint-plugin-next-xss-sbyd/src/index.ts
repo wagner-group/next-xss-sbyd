@@ -5,6 +5,7 @@ import noDynamicScriptStyle from "./rules/no-dynamic-script-style.js";
 import noHtmlContentType from "./rules/no-html-content-type.js";
 import noHtmlTemplateStrings from "./rules/no-html-template-strings.js";
 import noRawRenderToString from "./rules/no-raw-render-to-string.js";
+import noObjectUrl from "./rules/no-object-url.js";
 import noUnsafeApiSend from "./rules/no-unsafe-api-send.js";
 import noUnsafeCastToSafeType from "./rules/no-unsafe-cast-to-safe-type.js";
 import noUnsafeHtmlResponse from "./rules/no-unsafe-html-response.js";
@@ -15,10 +16,12 @@ import requireSafeJsxRuntime from "./rules/require-safe-jsx-runtime.js";
 import safeJsxUrlsActive from "./rules/safe-jsx-urls-active.js";
 import safeJsxUrlsNavigation from "./rules/safe-jsx-urls-navigation.js";
 
+import markdownLoaderCoverage from "./rules/markdown-loader-coverage.js";
 import requireSafeMarkdown from "./rules/require-safe-markdown.js";
 import noUnreviewedMdxExecution from "./rules/no-unreviewed-mdx-execution.js";
 
 const rules = {
+  "markdown-loader-coverage": markdownLoaderCoverage,
   "require-safe-markdown": requireSafeMarkdown,
   "no-unreviewed-mdx-execution": noUnreviewedMdxExecution,
   "no-danger": noDanger,
@@ -27,6 +30,7 @@ const rules = {
   "require-safe-api-route": requireSafeApiRoute,
   "require-safe-route-handler": requireSafeRouteHandler,
   "no-raw-render-to-string": noRawRenderToString,
+  "no-object-url": noObjectUrl,
   "safe-jsx-urls-active": safeJsxUrlsActive,
   "safe-jsx-urls-navigation": safeJsxUrlsNavigation,
   "no-html-content-type": noHtmlContentType,
@@ -76,6 +80,7 @@ plugin.configs.recommended = [
       "xss-sbyd/require-safe-api-route": "error",
       "xss-sbyd/require-safe-route-handler": "error",
       "xss-sbyd/no-raw-render-to-string": "error",
+      "xss-sbyd/no-object-url": "error",
       "xss-sbyd/safe-jsx-urls-active": "error",
       "xss-sbyd/no-html-content-type": "error",
       "xss-sbyd/no-dynamic-script-style": "error",
@@ -108,6 +113,7 @@ for (const [name, severity] of [["markdown", "error"], ["markdownMigration", "wa
     languageOptions: {parser, parserOptions: {ecmaFeatures: {jsx: true}}},
     plugins: {"xss-sbyd": plugin},
     rules: {
+      "xss-sbyd/markdown-loader-coverage": "warn",
       "xss-sbyd/require-safe-markdown": severity,
       "xss-sbyd/no-unreviewed-mdx-execution": severity,
     },

@@ -168,7 +168,7 @@ the wrappers are not a promise that every raw renderer option has identical sema
 
 ## safe-jsx-urls-active
 
-Requires `TrustedResourceUrl` in these attributes:
+Requires `TrustedScriptUrl` in these attributes:
 
 - `src` on `script`, imported `next/script`, `iframe`, `frame`, and `embed`.
 - `data` on `object`.
@@ -182,17 +182,17 @@ Requires `TrustedResourceUrl` in these attributes:
 even in attributes that accept trusted URLs.
 
 ```ts
-import {trustedResourceUrl} from "next-xss-sbyd";
+import {trustedScriptUrl} from "next-xss-sbyd";
 
-const scriptUrl = trustedResourceUrl`/assets/application.js`;
+const scriptUrl = trustedScriptUrl`/assets/application.js`;
 ```
 
-This constructs a trusted value for APIs that accept `TrustedResourceUrl`.
+This constructs a trusted value for APIs that accept `TrustedScriptUrl`.
 React's native `script.src` type accepts a string, so the constructed object cannot
 be passed directly to that prop. Do not cast it to a string to bypass the mismatch.
 
 Select developer-controlled resources; do not cast an attacker-controlled URL into
-a trusted type. Review embedded content; use `SafeExternalIframe` with a `TrustedResourceUrl` and an
+a trusted type. Review embedded content; use `SafeExternalIframe` with a `TrustedScriptUrl` and an
 explicit sandbox of `""` or `"allow-scripts"`. See [URL guidance](../docs/newcode.md#urls-automatic-validation-for-passive-sinks)
 for the distinction between ordinary navigation and active content.
 
@@ -314,6 +314,31 @@ meaningful type and validate it; casting through `unknown` or `any` is not a rep
 Restricted conversions require a separate, documented review of the producer and
 every place that consumes its output.
 
+## no-object-url
+
+Reports references to native `URL.createObjectURL`, including local aliases,
+destructuring, global-qualified access and statically resolvable computed members.
+Checking the reference also covers callback passing, `Reflect.apply`, nested
+`Function.prototype.call.call`, and casts of the function before `.call`/`.apply`.
+TypeScript declaration identity distinguishes native methods from unrelated
+user-defined methods and shadowed `URL` bindings. Native-typed function parameters
+and imported aliases are also checked when called; a local alias can report at
+both acquisition and invocation. Type services are required.
+Named `createObjectURL` access on `any`, `unknown` or unresolved/error receivers
+reports `unverifiedObjectUrl`: use the checked API or a justified disable.
+
+User-declared structural method types remain exempt. For example, a function
+parameter typed `{createObjectURL(blob: Blob): string}` can receive the native
+`URL` constructor without a finding. The rule does not trace values through
+these structural boundaries. Computed names without a finite literal type and
+reflective property lookup such as `Reflect.get` also require manual review.
+
+Use `createPassiveObjectUrl` from `next-xss-sbyd/object-url` and the matching
+download or preview adapter. A `MediaSource` workflow needs its own reviewed
+exception; casting it to `Blob` does not make it safe. The rule has no filename
+exemptions. The package's native implementation call may use a narrowly scoped,
+justified disable, like other reviewed exceptions.
+
 ## require-disable-justification
 
 Rejects unlimited `eslint-disable` directives and `xss-sbyd/*` disables without a
@@ -353,7 +378,8 @@ This option only skips the heuristic; it does not produce `SafeHtml` or relax an
 
 Opt-in: `configs.markdown` enables errors; `configs.markdownMigration` enables
 warnings. Add one after the corresponding base preset. Reports direct value
-imports/re-exports of `react-markdown` and `markdown-to-jsx`, including subpaths.
+imports/re-exports of `react-markdown`, `markdown-to-jsx`, `rehype-react`,
+`react-remark`, and `marked-react`, including subpaths.
 Use `SafeMarkdown` from `next-xss-sbyd/markdown` for ordinary content, or review a
 narrow adapter when a different rendering policy is necessary. A default
 `react-markdown` integration may already be safe; this rule enforces the project's
@@ -361,10 +387,12 @@ chosen rendering boundary, rather than claiming every direct import is vulnerabl
 
 Aliases, namespace imports, named re-exports, export-all, CommonJS `require`,
 TypeScript import-equals, and literal dynamic imports are checked at the module
-boundary. Type-only imports are excluded. A locally defined `require` is not
+boundary. Type-only and side-effect-only imports (`import "react-markdown"`)
+are excluded: they do not bind a renderer or execution API. A locally defined `require` is not
 mistaken for the CommonJS loader. Import findings remain even if a caller later
 shadows the imported renderer; the import itself crosses the boundary. Nonliteral
-`import()` and unshadowed `require()` report a coverage limitation. Arbitrary
+`import()` and unshadowed `require()` receive one warning from
+`markdown-loader-coverage`, even in the strict preset. Arbitrary
 wrapper implementations and indirect loader aliases need manual review.
 
 HTML parsers such as `marked`, `markdown-it`, and unified remain allowed. Finish
@@ -382,10 +410,15 @@ migration and compatibility limits.
 
 Enabled by the same opt-in Markdown presets. Reports `createProcessor`, `compile`, `compileSync`,
 `evaluate`, `evaluateSync`, `run`, and `runSync` imports from `@mdx-js/mdx`, plus
-namespace/default loads, internal subpaths, `@next/mdx`, and `next-mdx-remote`
-entry points. The import forms and dynamic-loading limitations described above
+namespace/default loads, internal subpaths, `next-mdx-remote`,
+`next-mdx-remote-client`, and `mdx-bundler` entry points. The import forms and dynamic-loading limitations described above
 apply. These APIs compile or execute application code; an authenticated CMS,
 literal source string, or same-origin fetch alone does not establish code trust.
+
+`@next/mdx` is excluded: the Next configuration plugin compiles repository MDX
+at build time rather than accepting runtime source strings. Those documents and
+build plugins must still be trusted application code; this exclusion does not
+authorize compiling untrusted CMS or user content during a build.
 
 Keep MDX integration in a narrowly reviewed file with an owner, justification,
 source-authorization policy, and execution tests. Use ordinary Markdown for
@@ -395,3 +428,13 @@ the server, and CSP must not be relaxed automatically to enable evaluation.
 The Markdown inventory discovers `.md` and `.mdx` files separately from JS/TS
 lint coverage. Finding a document does not analyze its executable contents or
 establish that every consumer has been found.
+
+## markdown-loader-coverage
+
+Enabled at warning severity in both `configs.markdown` and
+`configs.markdownMigration`. Reports one coverage limitation for a nonliteral
+`import()` or unshadowed `require()` whose target cannot be determined statically.
+The two boundary rules report only known imports, avoiding duplicate diagnostics.
+Ordinary variable loaders, including localized JSON imports, are not proof of a
+Markdown violation. Review their possible targets; arbitrary loader aliases and
+wrapper implementations still need manual review. No autofix is provided.

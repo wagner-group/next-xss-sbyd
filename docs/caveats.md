@@ -37,6 +37,12 @@ text and attribute APIs, validate message origins, and avoid DOM sinks that pars
 strings. CSP can limit some exploit paths, but a policy that authorizes the executing
 client script does not make that script's DOM operations safe.
 
+The optional [checked object-URL API](object-url.md) supports browser PNG/JPEG/GIF
+previews and downloads with explicit ownership and revocation. MIME labels do not
+validate bytes, and downloaded files can be unsafe when opened externally. This
+capability does not make ordinary `blob:` strings valid URL inputs or permit active
+resource embedding.
+
 ## JSX is conditional, not automatically safe
 
 This package's validating JSX runtime checks HTML attributes as needed to prevent
@@ -71,7 +77,7 @@ markup.
 ### Active sinks without direct TypeScript JSX support
 
 React types active intrinsic URL props as strings, which cannot carry a
-`TrustedResourceUrl` directly. `SafeExternalIframe` is the supported iframe adapter and also
+`TrustedScriptUrl` directly. `SafeExternalIframe` is the supported iframe adapter and also
 requires a fixed hardened sandbox. Other active sinks remain deliberately narrower:
 
 - Prefer bundled scripts. `SafeScriptBlock` covers only reviewed
@@ -110,7 +116,7 @@ not validate response bytes.
 ```
 
 The JSX runtime validates this navigation URL; it does not need a
-`TrustedResourceUrl`. The endpoint must still meet the response requirements above.
+`TrustedScriptUrl`. The endpoint must still meet the response requirements above.
 
 Keep `SafeExternalIframe`'s HTML policy unchanged. Do not add `allow-same-origin` to work
 around PDF failures, or use `embed`/`object`, which conflict with `object-src 'none'`.
@@ -279,19 +285,19 @@ where an API requires a checked one. The JSX runtime also validates URL strings 
 runtime. These checks do not prevent phishing, open redirects, privacy leaks, unwanted
 navigation, server-side request forgery, or authorization bugs.
 
-For scripts and frames, `trustedResourceUrl` creates a runtime-checked object that
+For scripts and frames, `trustedScriptUrl` creates a runtime-checked object that
 identifies a developer-controlled URL. Developers must review the referenced content.
 Similarly, `safeScript` and `safeStyleSheet` mark literal JavaScript and CSS as safe
 after developer review. These APIs cannot establish that the code is benign.
 Compromise of an authorized origin or a mistake in reviewed code remains exploitable.
 
-`trustedResourceUrl` percent-encodes interpolations, but literal URL syntax still
+`trustedScriptUrl` percent-encodes interpolations, but literal URL syntax still
 needs review: under HTTP(S), browsers treat backslashes as slashes, so
-``trustedResourceUrl`/\\evil.example/app.js` `` selects `evil.example`, just like
+``trustedScriptUrl`/\\evil.example/app.js` `` selects `evil.example`, just like
 a leading `//`. An empty interpolation can also join literal slashes into `//`, as in
-``trustedResourceUrl`/${""}/evil.example/app.js` ``. For same-origin resources, use
+``trustedScriptUrl`/${""}/evil.example/app.js` ``. For same-origin resources, use
 ordinary `/path` syntax with a fixed path prefix before interpolations (as in
-``trustedResourceUrl`/api/assets/${assetId}` ``), avoid literal backslashes, and
+``trustedScriptUrl`/api/assets/${assetId}` ``), avoid literal backslashes, and
 review the resolved origin of script and frame URLs.
 
 ## Coverage, versions, and non-XSS security

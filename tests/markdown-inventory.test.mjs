@@ -64,3 +64,58 @@ test("audit exposes justified Markdown adapter exceptions", async (t) => {
   assert.ok(result.findings.some((item) => item.category === "markdown-renderer" && item.suppressed));
   assert.ok(result.exemptions.some((item) => item.justification?.includes("owner: security")));
 });
+
+test("inventory ignores safe APIs, unrelated options and TypeScript generic arguments", async (t) => {
+  const directory = await project(t);
+  await writeFile(join(directory, "article.tsx"), `
+    app.use(router);
+    const options = {overrides: {}};
+    const safe = <SafeMarkdown>hello</SafeMarkdown>;
+    const namespaced = <Security.SafeMarkdown />;
+    const block = <SafeBlock>{sanitizeUserHtml(html)}</SafeBlock>;
+    type Nodes = Array<MarkdownNode>;
+    type SpacedNodes = Array <MarkdownNode>;
+  `);
+  const items = await inventoryMarkdown(directory);
+  assert.deepEqual(items.filter((item) => item.file === "article.tsx"), []);
+  await writeFile(join(directory, "article.tsx"), `
+    const wrapper = <CustomMarkdown>hello</CustomMarkdown>;
+    const mdx = <MDXContent />;
+    const unsafe = {dangerouslySetInnerHTML: {__html: html}};
+    import {bundleMDX} from "mdx-bundler";
+    import {MDXRemote} from "next-mdx-remote-client/rsc";
+  `);
+  const candidates = (await inventoryMarkdown(directory)).filter((item) => item.file === "article.tsx");
+  assert.equal(candidates.filter((item) => item.category === "unknown-wrapper").length, 2);
+  assert.equal(candidates.filter((item) => item.category === "html-sink").length, 1);
+  assert.equal(candidates.filter((item) => item.category === "renderer-or-pipeline").length, 2);
+});
+
+test("audit does not add Markdown inventory warnings without the package opt-in", async (t) => {
+  const directory = await project(t);
+  await writeFile(join(directory, "package.json"), JSON.stringify({type: "module"}));
+  await writeFile(join(directory, "article.tsx"), 'export const greeting = "hello";');
+  const result = await runAudit(await discoverProject(directory), {recommended: false});
+  assert.equal(result.diagnostics.some((item) => item.id === "audit.markdown-inventory"), false);
+  assert.ok((await inventoryMarkdown(directory)).some((item) => item.category === "document"));
+});
+
+test("strict config keeps loader coverage at warning and rejects disabled coverage", async (t) => {
+  const directory = await project(t);
+  const configPath = join(directory, "eslint.config.mjs");
+  const presets = `import plugin from ${JSON.stringify(pathToFileURL(join(root, "eslint-plugin-next-xss-sbyd/dist/index.js")).href)}; export default [...plugin.configs.recommended, ...plugin.configs.markdown`;
+  await writeFile(configPath, `${presets}];`);
+  const accepted = await checkLint(await discoverProject(directory), "enforce");
+  assert.ok(accepted.some((item) => item.id === "eslint.effective"), JSON.stringify(accepted));
+  await writeFile(configPath, `${presets}, {rules: {"xss-sbyd/markdown-loader-coverage": "off"}}];`);
+  const rejected = await checkLint(await discoverProject(directory), "enforce");
+  assert.ok(rejected.some((item) => item.id === "eslint.preset-weakened" && item.evidence.includes("markdown-loader-coverage")), JSON.stringify(rejected));
+});
+
+test("config checking diagnoses missing plugin through the existing base stage check", async (t) => {
+  const directory = await project(t);
+  await writeFile(join(directory, "eslint.config.mjs"), 'export default [{files: ["**/*.{js,ts,tsx,mjs}"]}];');
+  const diagnostics = await checkLint(await discoverProject(directory), "lint");
+  assert.ok(diagnostics.some((item) => item.id === "eslint.preset-stage"));
+  assert.equal(diagnostics.some((item) => item.id === "eslint.preset-weakened"), false);
+});

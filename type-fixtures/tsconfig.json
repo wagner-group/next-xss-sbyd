@@ -9,5 +9,5 @@
     "target": "ES2022",
     "noEmit": true
   },
-  "include": ["pass.ts", "pass-jsx.tsx"]
+  "include": ["pass.ts", "pass-jsx.tsx", "object-url.tsx"]
 }

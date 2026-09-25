@@ -10,8 +10,10 @@ import { inventoryMarkdown, inventoryResponses } from "./inventory.js";
 
 const RULE_CATEGORIES: Readonly<Record<string, string>> = {
   "require-safe-markdown": "markdown-renderer",
+  "markdown-loader-coverage": "coverage",
   "no-unreviewed-mdx-execution": "mdx-execution",
   "no-danger": "raw-html",
+  "no-object-url": "object-url",
   "safe-jsx-urls-active": "active-url",
   "no-unsafe-html-response": "html-response",
   "no-unsafe-api-send": "node-send",
@@ -534,13 +536,15 @@ export async function runAudit(
         "Recommended-preset findings are labeled recommended and are not current application findings.",
       action: "Remediate them before enabling the recommended preset.",
     });
-  const markdownInventory = await inventoryMarkdown(project.root);
+  const markdownInventory = project.packageJson["next-xss-sbyd"]?.markdown
+    ? await inventoryMarkdown(project.root)
+    : [];
   if (markdownInventory.length > 0) diagnostics.push({
     id: "audit.markdown-inventory",
     category: "coverage",
     status: "warning",
     message: `The heuristic Markdown inventory found ${markdownInventory.length} document or integration site(s). MDX contents and unknown wrappers are not analyzed.`,
-    action: "Review renderer/configuration sites, raw-HTML plugins, final sanitization, and MDX source authorization. Opt into the Markdown preset after inventorying. Absence of findings is not a safety proof.",
+    action: "Review renderer/configuration sites, raw-HTML plugins, final sanitization, and MDX source authorization. Absence of findings is not a safety proof.",
     evidence: markdownInventory.map((item) => `${item.file}:${item.line}:${item.column} ${item.category}: ${item.detail}`).join("\n"),
   });
   const responseInventory = await inventoryResponses(project.root);
