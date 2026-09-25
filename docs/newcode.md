@@ -47,6 +47,7 @@ these aliases in `next.config.ts`:
 
 ```ts
 import type {NextConfig} from "next";
+import {withXssSbyd} from "next-xss-sbyd/next-config";
 
 const aliases = {
   "next/link": "next-xss-sbyd/compat/link",
@@ -62,12 +63,30 @@ const config: NextConfig = {
   },
 };
 
-export default config;
+export default withXssSbyd(config);
 ```
 
-Keep both configurations so development and production remain protected if the app
-switches bundlers. These three modules use unaliased Next.js
-imports internally to avoid an alias loop.
+`withXssSbyd` preserves your webpack callback and enables JSX import redirection by
+default. This is a best-effort attempt to partially mitigate XSS risks from
+third-party libraries by applying this package's checks to more of their rendering.
+Coverage is incomplete: third-party libraries can still produce unsafe HTML, even
+with the wrapper enabled. Keep `jsxImportSource` configured for application code
+as well. For function or async Next configs, call the wrapper on the resolved
+configuration object inside the function.
+
+Use webpack for both development and production. On Next.js 16, use
+`next dev --webpack` and `next build --webpack`; on Next.js 14/15, omit
+`--turbo`/`--turbopack`. Turbopack does not support this redirection: the wrapper
+throws when it detects Turbopack. To explicitly accept the reduced coverage, use
+`withXssSbyd(config, {redirectJsxRuntime: false})`. The component aliases above are
+still needed; keeping both alias configurations supports that opt-out. These three
+modules use unaliased Next.js imports internally to avoid an alias loop.
+
+Test dependencies with both ordinary and hostile input before deployment. Libraries
+that insert raw HTML or use unsupported URLs may now throw even when their input
+was previously accepted. Do not add a global unchecked-HTML exemption to restore
+compatibility. Review security-sensitive dependencies and see
+[the remaining limits](caveats.md#third-party-components-and-dependencies).
 
 <a id="configure-the-response-guard"></a>
 
@@ -101,7 +120,8 @@ Set the build and production start scripts in `package.json`:
 }
 ```
 
-These scripts use POSIX shell syntax. Preserve any existing build or start arguments.
+These scripts use POSIX shell syntax. On Next.js 16, append `--webpack` to the
+`next build` command. Preserve any existing build or start arguments.
 `next build` prerenders static pages and route handlers into files served later, so
 response validation must also run during the build.
 

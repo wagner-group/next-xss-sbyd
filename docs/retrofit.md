@@ -39,7 +39,9 @@ step, `--sanitize-node` as an accepted legacy no-op (dependencies are included),
 overwrite a generated target that has uncommitted changes. Without `--yes`, it asks
 for confirmation on an interactive terminal; non-interactive callers must use
 `--yes` or `--dry-run`. Existing executable configuration still requires manual
-editing, even with `--force`.
+editing, even with `--force`. The current `check-config` checks do not verify JSX
+import redirection; install and test the `withXssSbyd` wrapper below even if the
+configuration check passes.
 
 An audit finding is a reported problem or location that needs review, not proof
 of an exploitable vulnerability. A baseline is a saved audit used for comparison.
@@ -110,7 +112,12 @@ source without deploying or relying on the modified application to run.
 When the security findings reach zero, enable the runtime checks: set
 `compilerOptions.jsxImportSource` to `next-xss-sbyd`; configure both
 `turbopack.resolveAlias` and `config.resolve.alias` for `next/link`, `next/image`, and
-`next/form`; and call `installResponseGuard()` as described in section 5. The complete
+`next/form`; wrap the Next.js configuration with `withXssSbyd` from
+`next-xss-sbyd/next-config`; and call `installResponseGuard()` as described in section 5.
+The wrapper enables redirection of bundled React JSX runtime imports by default,
+including imports in precompiled dependencies. Use webpack in development and
+production (`--webpack` on Next.js 16). Turbopack is unsupported unless redirection
+is explicitly disabled with `withXssSbyd(config, {redirectJsxRuntime: false})`. The complete
 runtime configuration is shown in the
 [new-code guide](newcode.md#set-up-enforcement). Test representative pages and hostile
 inputs before deploying the runtime and aliases, then change the exported preset:
@@ -293,9 +300,13 @@ every `dangerously*` attribute unless a supported HTML attribute contains a
 verifies `jsxImportSource: "next-xss-sbyd"`, `no-danger` stops reporting JSX spreads
 because the runtime checks the final merged props even when a spread is typed as `any`.
 Explicit raw-HTML attributes remain lint errors, as do raw-HTML props passed through
-`createElement` or `cloneElement`. Precompiled libraries use the JSX runtime selected
-when they were built, so validate unknown props where those libraries forward them to
-a URL attribute on a built-in HTML element. Applications that
+`createElement` or `cloneElement`. `withXssSbyd` makes a best-effort attempt to
+partially mitigate third-party library risk by applying these checks to more dependency rendering. Coverage remains
+incomplete, and libraries can still produce unsafe HTML. Review security-sensitive
+dependencies and [the remaining limits](caveats.md#third-party-components-and-dependencies).
+Existing raw-HTML or unsupported-URL uses in dependencies may now throw; test
+representative pages before deployment.
+Applications that
 cannot select this JSX runtime, including those
 that require another `jsxImportSource`, must retain explicit lint protection for
 spreads.

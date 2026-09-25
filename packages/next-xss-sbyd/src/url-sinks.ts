@@ -116,6 +116,14 @@ export function validateIntrinsicUrlProps(type: string, originalProps: Props): P
   }
 
   let props = originalProps;
+  // Markdown renderers use an empty image src to remove a rejected URL.
+  // Omit it rather than accepting empty resource URLs generally or asking older
+  // React/browser versions to fetch the current document as an image.
+  if (tag === "img") {
+    for (const name of matchingPropNames(props, "src")) {
+      if (props[name] === "") props = withValue(props, name, undefined);
+    }
+  }
   const passive = PASSIVE_URL_PROPS[tag];
   if (passive !== undefined) {
     for (const name of passive) props = validateStringProps(props, name, validateUrl);

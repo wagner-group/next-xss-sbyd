@@ -131,7 +131,54 @@ browser diagnostics document the current limitation, not an inline-PDF recipe.
 
 ## Third-party components and dependencies
 
-The plugin checks application source, not the internals of installed React components.
+The ESLint plugin checks application source, not the internals of installed React
+components. The `withXssSbyd` Next.js configuration wrapper adds runtime checks to
+bundled imports of `react/jsx-runtime` and `react/jsx-dev-runtime` by default,
+including precompiled dependencies. This requires webpack and excludes Next.js
+internals and this package's own implementation. It does not intercept
+`React.createElement`, later prop changes through `React.cloneElement` (including
+some `asChild` composition), server dependencies left external to the bundle,
+vendored JSX runtimes, or direct DOM operations. Redirecting a library's JSX import
+does not establish that its final HTML element passes through the checks.
+
+In Pages Router, Next.js normally loads server dependencies directly from
+`node_modules`, outside webpack. With this default configuration, redirection reaches
+server-rendered dependency JSX only for packages included in `transpilePackages`;
+the wrapper does not add your
+third-party libraries to that list automatically. Client-side checks cannot undo an
+injection already emitted in the server response: an injected script may run before
+hydration, and a later client-side rejection can also break hydration.
+
+To include a JSX-bearing dependency in Pages server checks, add its package name to
+your existing configuration before wrapping it, and test its normal and hostile-input
+rendering in production and development:
+
+```js
+export default withXssSbyd({
+  // Preserve existing entries; include JSX-bearing transitive packages as needed.
+  transpilePackages: ["your-component-library"],
+});
+```
+
+This is a partial mitigation, not a guarantee about all output from that library.
+App Router bundles dependencies by default, but explicitly externalized packages
+remain outside these checks. The integration tests pin both the checked, transpiled
+Pages dependencies and the unchecked default ESM/CommonJS dependency behavior.
+
+The runtime omits an exactly empty `img src` rather than rejecting it, accommodating
+libraries such as React Markdown that represent rejected image URLs as empty strings.
+Whitespace-only or unsafe nonempty URLs and empty active-resource URLs still throw.
+
+Turbopack is unsupported for JSX import redirection. Selecting
+`withXssSbyd(config, {redirectJsxRuntime: false})` explicitly disables it; application
+`jsxImportSource` and the separate Next.js component aliases retain their own checks.
+Redirection can expose incompatible raw-HTML and URL uses in dependencies. Test
+ordinary rendering as well as hostile input when enabling it or upgrading packages.
+The redirection tests cover Next.js 14–16 webpack production and development builds,
+App and Pages routers, server rendering, hydration and client updates. Edge routes
+are tested on Next.js 14/15. Next.js 16 Edge coverage is not established: the fixture
+currently encounters a missing client-reference manifest during its build.
+
 A third-party component can use `dangerouslySetInnerHTML`, construct an unsafe URL,
 emit an inline script, or perform a DOM-based injection after hydration. A component's
 typed props are not proof of safe implementation. Review security-sensitive
@@ -318,9 +365,9 @@ framework versions, alternate JSX runtimes, and custom servers or response objec
 reduce coverage. Re-run compatibility and adversarial integration tests when upgrading
 the framework, renderer, linter, sanitizer, or runtime.
 
-Precompiled dependencies use the JSX runtime selected when they were built, not the
-application's `jsxImportSource`. Their internal element creation is therefore outside
-this package's JSX runtime. Published wrappers that forward unknown props must validate those
+Precompiled dependencies do not inherit the application's `jsxImportSource`.
+`withXssSbyd` covers their bundled React automatic-runtime imports, subject to the
+limits above. Published wrappers that forward unknown props must validate those
 props at their final intrinsic sink. An application can select only one JSX import source; projects
 that require Emotion or another custom runtime must compose and audit a compatible
 runtime or retain explicit spread protection.
