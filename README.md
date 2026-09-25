@@ -112,6 +112,11 @@ resources; configure CSP image/media destinations for your application. Edge and
 without a DOM are unsupported. See the [API and highlight recipes](docs/sanitize.md)
 and [migration release notes](docs/releases.md).
 
+For ordinary untrusted Markdown, use `SafeMarkdown` from `next-xss-sbyd/markdown`.
+It accepts only source text and uses a fixed CommonMark policy in Node, browsers and
+Edge. See the [Markdown and MDX migration guide](docs/markdown.md) for existing parser
+recipes, formatting differences and the opt-in lint preset.
+
 <a id="configure-the-response-guard"></a>
 
 ## Check HTTP response bodies

@@ -46,6 +46,7 @@ jobs:
       - run: npm ci --prefix fixtures/next14
       - run: npm run test:object-url-browser
       - run: npm run test:frame-browser
+      - run: npm run test:markdown-browser
 
   compatibility:
     name: compatibility-node${{ matrix.node }}-${{ matrix.fixture }}-${{ matrix.mode }}

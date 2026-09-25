@@ -34,7 +34,7 @@ export interface PackageJson {
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
   workspaces?: unknown;
-  "next-xss-sbyd"?: { stage?: Stage };
+  "next-xss-sbyd"?: { stage?: Stage; markdown?: boolean };
 }
 
 export interface Project {
@@ -143,14 +143,14 @@ export async function discoverProject(directory: string): Promise<Project> {
 }
 
 /** Returns application source files, including ignored and generated files for coverage inventory. */
-export async function sourceFiles(root: string): Promise<string[]> {
+export async function sourceFiles(root: string, extensions: ReadonlySet<string> = SOURCE_EXTENSIONS): Promise<string[]> {
   const files: string[] = [];
   async function visit(directory: string): Promise<void> {
     for (const entry of await readdir(directory, { withFileTypes: true })) {
       if (entry.isDirectory() && IGNORED_DIRECTORIES.has(entry.name)) continue;
       const path = resolve(directory, entry.name);
       if (entry.isDirectory()) await visit(path);
-      else if (entry.isFile() && SOURCE_EXTENSIONS.has(extname(entry.name)))
+      else if (entry.isFile() && extensions.has(extname(entry.name)))
         files.push(path);
     }
   }
