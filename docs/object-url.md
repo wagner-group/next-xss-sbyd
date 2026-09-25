@@ -21,6 +21,14 @@ work with Strict Mode effect replay. Abandoned/failed renders allocate nothing;
 attachment failures after allocation revoke before propagating the error. Server
 rendering produces an image without `src` or a link without `href`.
 
+`filename` must be a nonempty primitive string; invalid filenames throw during
+render, before an Effect can allocate a URL. Blob identity and MIME validation
+run in the Effect before allocation. The TypeScript API requires a string `alt`,
+including `""` for decorative images. At runtime, alt text retains ordinary React
+handling and escaping, including for untyped legacy callers; it is not a URL or
+HTML sink. Missing alt text should be caught by accessibility checks rather than
+making an XSS retrofit fail at runtime. Extra props are ignored, not forwarded.
+
 If the application uses CSP, explicitly allow `blob:` in `img-src` for previews
 (for example, `createXssSbydHandler({imgSrc: ["'self'", "blob:"]})`). The default
 policy permits only self-hosted images. Do not add `blob:` to active directives
@@ -39,6 +47,25 @@ one attachment; a second attachment throws without changing the first. Create a
 fresh handle per attachment, call cleanup before replacement
 or removal, and revoke explicitly if attachment fails. `revokePassiveObjectUrl`
 is idempotent for authentic handles. Do not create URLs during a render function.
+
+Imperative attachment assumes native, unmodified DOM setters. Validation failures
+leave the handle available for a corrected attempt. If application code overrides
+a setter and it throws during assignment, the adapter does not promise rollback
+or automatic revocation; imperative callers must revoke when abandoning a handle:
+
+```ts
+const handle = createPassiveObjectUrl(photo, 'raster-preview');
+try {
+  const cleanup = attachPassiveObjectUrlPreview(image, handle);
+  // Retain cleanup and call it before replacement or removal.
+} catch (error) {
+  revokePassiveObjectUrl(handle);
+  throw error;
+}
+```
+
+The React components already provide this failure cleanup. Modified platform APIs
+are outside the adapters' security contract.
 
 Preview revocation is immediate. Download revocation marks the handle revoked
 immediately, then releases the native URL in the next timer task; download cleanup
@@ -71,17 +98,23 @@ bypass the adapters and require application review.
 
 `npm run test:object-url-browser` runs Chromium, Firefox and WebKit through
 Playwright and writes the actual browser and React versions to
-`tmp/object-url/results.json` on each run. Lifecycle evidence currently uses
-React 19.2.8 on Linux; this suite has not verified React 18, which remains in the
-package peer range. It verifies actual PNG/JPEG/GIF decoding, downloaded file bytes,
+`tmp/object-url/results.json` on each run. The additional lifecycle runner uses
+the pinned React 18 Next.js fixture and the workspace React 19, recording versions
+in `tmp/object-url-lifecycle/results.json`. Install the Next.js 14 fixture's
+dependencies before running (`npm ci --prefix fixtures/next14`), as CI does.
+The suites verify actual PNG/JPEG/GIF decoding, downloaded file bytes,
 manual revocation, replacement/unmount cleanup, Strict Mode cleanup, failed
-renders and failed attachment, and download cleanup during click dispatch. DOM
+renders, hydration, alt/children updates without reallocation, invalid filenames,
+and download cleanup during unmount or replacement in click dispatch. DOM
 mutation observation records URLs so tests can verify that fetching them fails
 after cleanup; no native API is mocked.
 
 For each permitted MIME essence, the suite navigates HTML and XHTML script
-payloads with and without a quoted charset parameter, without CSP or nosniff.
-A Blob labeled `text/html` is the positive execution control. WebKit requires
+payloads with and without a quoted charset parameter and matching file-signature
+prefixes, without CSP or nosniff and with the package's production CSP. A Blob
+labeled `text/html` is the positive execution control without CSP; the production
+policy must block that control. Preview checks prove that explicit `img-src blob:`
+allows decoding and its omission produces an image CSP violation. WebKit requires
 navigation in the creator page: its Playwright build rejects Blob navigation
 from a separately created blank page, even for the HTML positive control.
 

@@ -110,6 +110,9 @@ export function PassiveObjectUrlPreview({blob, alt}: {blob: Blob; alt: string}) 
 
 /** Owns a downloadable Blob; allocation happens after commit, never during render. */
 export function PassiveObjectUrlDownload({blob, filename, children}: {blob: Blob; filename: string; children: ReactNode}) {
+  if (typeof filename !== "string" || !filename) {
+    throw new TypeError("Expected an HTML anchor and a nonempty download filename");
+  }
   const ref = useRef<HTMLAnchorElement>(null);
   useEffect(function mountDownload() {
     const handle = createPassiveObjectUrl(blob, "download");

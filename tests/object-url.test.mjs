@@ -12,3 +12,18 @@ test('server rendering adapters allocate no object URL and emit no blob URL', ()
   assert.equal(renderToString(createElement(PassiveObjectUrlPreview, {blob, alt:'preview'})), '<img alt="preview"/>');
   assert.equal(renderToString(createElement(PassiveObjectUrlDownload, {blob, filename:'image.png'}, 'Download')), '<a>Download</a>');
 });
+
+test('invalid download filenames fail during render, before a browser effect can allocate', () => {
+  const blob = new Blob(['x'], {type:'image/png'});
+  for (const filename of [undefined, null, '', 42, new String('image.png')]) {
+    assert.throws(() => renderToString(createElement(PassiveObjectUrlDownload, {blob, filename}, 'Download')), TypeError);
+  }
+});
+
+test('preview alt retains ordinary React escaping and untyped caller behavior', () => {
+  const blob = new Blob(['x'], {type:'image/png'});
+  for (const alt of ['', '<script>alert(1)</script>', 123, null, undefined]) {
+    assert.equal(renderToString(createElement(PassiveObjectUrlPreview, {blob, alt})),
+      renderToString(createElement('img', {alt})));
+  }
+});

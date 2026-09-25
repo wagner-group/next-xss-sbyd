@@ -4,16 +4,31 @@ import {once} from 'node:events';
 import {readFile, mkdir, writeFile} from 'node:fs/promises';
 import {build} from 'esbuild';
 import {chromium, firefox, webkit} from 'playwright-core';
+import {createContentSecurityPolicy} from 'next-xss-sbyd/csp';
 
 await mkdir('tmp/object-url', {recursive:true});
 await build({entryPoints:['tests/browser-object-url.mjs'], bundle:true, platform:'browser', define:{'process.env.NODE_ENV':'"development"', 'process.env':'{}'}, format:'iife', outfile:'tmp/object-url/app.js'});
 const bundle = await readFile('tmp/object-url/app.js');
 const pixel = [...await readFile('tests/browser-sanitize/assets/pixel.png')];
 const executed = new Set();
+const nonce = 'object-url-browser-csp';
+const previousEnvironment = process.env.NODE_ENV;
+process.env.NODE_ENV = 'production';
+const policies = {
+  '/csp': createContentSecurityPolicy(nonce),
+  '/csp-blob': createContentSecurityPolicy(nonce, {imgSrc:["'self'", 'blob:']}),
+};
+if (previousEnvironment === undefined) delete process.env.NODE_ENV;
+else process.env.NODE_ENV = previousEnvironment;
+assert(!policies['/csp'].includes("'unsafe-eval'"));
 const server = createServer((req, res) => {
   if (req.url.startsWith('/executed')) { executed.add(req.url); res.end(); }
   else if (req.url === '/app.js') { res.setHeader('Content-Type','text/javascript'); res.end(bundle); }
-  else { res.setHeader('Content-Type','text/html'); res.end('<div id="root"></div><script src="/app.js"></script>'); }
+  else {
+    if (policies[req.url]) res.setHeader('Content-Security-Policy', policies[req.url]);
+    res.setHeader('Content-Type','text/html');
+    res.end(`<div id="root"></div><script nonce="${nonce}" src="/app.js"></script>`);
+  }
 });
 server.listen(0, '127.0.0.1');
 await once(server,'listening');
@@ -24,6 +39,7 @@ try {
     const browser = await engine.launch({headless:true});
     try {
       const context = await browser.newContext({acceptDownloads:true});
+      context.setDefaultTimeout(15000);
       const page = await context.newPage();
       const errors = [];
       page.on('pageerror', error => errors.push(error.message));
@@ -132,39 +148,85 @@ try {
         await page.evaluate(() => window.unmount());
       }
       for (const url of await page.evaluate(() => [...new Set(window.observedUrls)])) await assertRevoked(page,url);
-      // No CSP or nosniff: each type must survive native top-level Blob navigation.
+      // Native top-level navigation is tested independently of CSP and again
+      // under the package's production policy inherited by creator-owned Blobs.
       const cases = [];
-      for (const type of ['image/png','image/jpeg','image/gif']) {
-        for (const suffix of ['', '; charset="utf-8"']) {
-          for (const syntax of ['html','xhtml']) {
-            const id = `${name}-${cases.length}`;
-            const payload = `${syntax === 'html' ? '<!doctype html><html>' : '<html xmlns="http://www.w3.org/1999/xhtml">'}<script>globalThis.attacked=true;fetch('${origin}/executed?${id}')</script></html>`;
-            const target = await context.newPage();
-            await target.goto(origin);
-            const url = await target.evaluate(({payload,type}) => api.createPassiveObjectUrl(new Blob([payload],{type}), 'download').url,{payload,type:type+suffix});
-            let navigationDownload;
-            target.on('download', value => { navigationDownload = value; });
-            try { await target.goto(url); } catch (error) {
-              navigationDownload ??= await target.waitForEvent('download', {timeout:1000}).catch(() => null);
-              assert(navigationDownload, `${name} ${type+suffix}: unexpected navigation failure: ${error.message}`);
+      const signatures = {
+        'image/png': [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
+        'image/jpeg': [0xff, 0xd8, 0xff, 0xe0],
+        'image/gif': [...Buffer.from('GIF89a')],
+      };
+      for (const policy of ['none', 'production']) {
+        const creator = policy === 'none' ? origin : `${origin}/csp`;
+        for (const type of Object.keys(signatures)) {
+          for (const suffix of ['', '; charset="utf-8"']) {
+            for (const syntax of ['html','xhtml']) {
+              for (const prefixed of [false, true]) {
+                const id = `${name}-${cases.length}`;
+                const payload = `${syntax === 'html' ? '<!doctype html><html>' : '<html xmlns="http://www.w3.org/1999/xhtml">'}<script>globalThis.attacked=true;fetch('${origin}/executed?${id}')</script></html>`;
+                const bytes = [...(prefixed ? signatures[type] : []), ...Buffer.from(payload)];
+                const target = await context.newPage();
+                await target.goto(creator);
+                const url = await target.evaluate(({bytes,type}) => api.createPassiveObjectUrl(new Blob([new Uint8Array(bytes)],{type}), 'download').url,{bytes,type:type+suffix});
+                let navigationDownload;
+                target.on('download', value => { navigationDownload = value; });
+                try {
+                  if (policy === 'none') await target.goto(url);
+                  else navigationDownload = await navigateFromPage(target, url);
+                } catch (error) {
+                  navigationDownload ??= await target.waitForEvent('download', {timeout:1000}).catch(() => null);
+                  assert(navigationDownload, `${name} ${policy} ${type+suffix}: unexpected navigation failure: ${error.message}`);
+                }
+                if (navigationDownload) {
+                  assert.equal(await navigationDownload.failure(),null);
+                  assert.deepEqual([...await readFile(await navigationDownload.path())],bytes);
+                }
+                assert.notEqual(await target.evaluate(() => globalThis.attacked),true);
+                assert(!executed.has(`/executed?${id}`));
+                await target.close();
+                cases.push({policy,type:type+suffix,syntax,prefixed});
+              }
             }
-            if (navigationDownload) {
-              assert.equal(await navigationDownload.failure(),null);
-              assert.equal(await readFile(await navigationDownload.path(),'utf8'),payload);
-            }
-            assert.notEqual(await target.evaluate(() => globalThis.attacked),true);
-            assert(!executed.has(`/executed?${id}`));
-            await target.close();
-            cases.push({type:type+suffix,syntax});
           }
         }
+        // The same HTML control must execute without CSP and be blocked by CSP.
+        const target = await context.newPage();
+        await target.addInitScript(() => {
+          window.violations = [];
+          document.addEventListener('securitypolicyviolation', event => window.violations.push(event.effectiveDirective));
+        });
+        await target.goto(creator);
+        const id = `${name}-control-${policy}`;
+        const control = await target.evaluate(({origin,id}) => URL.createObjectURL(new Blob([`<script>globalThis.attacked=true;fetch('${origin}/executed?${id}')</script>`],{type:'text/html'})),{origin,id});
+        await navigateFromPage(target, control);
+        if (policy === 'none') {
+          assert.equal(await target.evaluate(() => globalThis.attacked),true);
+        } else {
+          await target.waitForFunction(() => window.violations.some(directive => directive.startsWith('script-src')));
+          assert.notEqual(await target.evaluate(() => globalThis.attacked),true);
+          assert(!executed.has(`/executed?${id}`));
+        }
+        await target.close();
       }
-      // Positive control establishes that the payload executes when labeled HTML.
-      const target = await context.newPage(); await target.goto(origin);
-      const control = await target.evaluate(origin => URL.createObjectURL(new Blob([`<script>globalThis.attacked=true;fetch('${origin}/executed?control')</script>`],{type:'text/html'})),origin);
-      await target.goto(control);
-      assert.equal(await target.evaluate(() => globalThis.attacked),true);
-      await target.close();
+      for (const allowed of [false, true]) {
+        const target = await context.newPage();
+        await target.goto(`${origin}/${allowed ? 'csp-blob' : 'csp'}`);
+        await target.evaluate(() => {
+          window.violations = [];
+          document.addEventListener('securitypolicyviolation', event => window.violations.push({directive:event.effectiveDirective, uri:event.blockedURI}));
+        });
+        await target.evaluate(pixel => window.mount(pixel,'image/png','preview'),pixel);
+        if (allowed) {
+          await target.locator('img').evaluate(img => img.decode());
+          assert.equal(await target.locator('img').evaluate(img => img.naturalWidth),16);
+          assert.deepEqual(await target.evaluate(() => window.violations),[]);
+        } else {
+          await target.waitForFunction(() => window.violations.some(event => event.directive === 'img-src' && event.uri.startsWith('blob')));
+          assert.equal(await target.locator('img').evaluate(img => img.naturalWidth),0);
+        }
+        await target.evaluate(() => window.unmount());
+        await target.close();
+      }
       if (name === 'chromium') await writeFile('tmp/object-url/coverage.json', JSON.stringify(await page.coverage.stopJSCoverage()));
       report.push({engine:name,version:browser.version(),react:await page.evaluate(() => window.reactVersion),status:'passed',adversarialNavigations:cases.length});
       console.log(report.at(-1));
@@ -176,4 +238,20 @@ try {
 }
 async function assertRevoked(page,url) {
   await page.waitForFunction(async url => { try { await fetch(url); return false; } catch { return true; } },url);
+}
+
+// Browser-initiated page.goto(blob) does not inherit the creator's CSP in
+// Chromium. Follow a real page link to exercise application-originated navigation.
+async function navigateFromPage(page, url) {
+  await page.evaluate(url => {
+    const link = document.createElement('a');
+    link.id = 'navigate-blob'; link.href = url; link.textContent = 'Navigate';
+    document.body.append(link);
+  }, url);
+  const completed = Promise.race([
+    page.waitForURL(url).then(() => undefined),
+    page.waitForEvent('download'),
+  ]);
+  await page.locator('#navigate-blob').click();
+  return completed;
 }

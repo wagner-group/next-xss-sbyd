@@ -1,8 +1,10 @@
 import React, {StrictMode} from 'react';
-import {createRoot} from 'react-dom/client';
+import {createRoot, hydrateRoot} from 'react-dom/client';
+import {renderToString} from 'react-dom/server.browser';
 import {flushSync} from 'react-dom';
 import * as api from 'next-xss-sbyd/object-url';
 import {navigationUrl, resourceUrl} from 'next-xss-sbyd';
+import {jsx} from 'next-xss-sbyd/jsx-runtime';
 window.api = api;
 window.reactVersion = React.version;
 window.observedUrls = [];
@@ -77,7 +79,60 @@ window.mountDownload = function mountDownload(blob, filename) {
     React.createElement(api.PassiveObjectUrlDownload, {blob, filename}, 'Download'))));
 };
 
+let lifecycleBlob;
+let lifecycleProps;
+function lifecycleElement() {
+  const Component = lifecycleProps.mode === 'download' ? api.PassiveObjectUrlDownload : api.PassiveObjectUrlPreview;
+  return jsx(StrictMode, {children: jsx(Component, {
+    blob: lifecycleBlob, alt: lifecycleProps.alt, filename: lifecycleProps.filename,
+    children: lifecycleProps.mode === 'download' ? lifecycleProps.children : undefined,
+  })});
+}
+window.guardRawObjectUrls = function guardRawObjectUrls(url) {
+  window.rejects(() => jsx('img', {src: url, alt: 'raw'}));
+  window.rejects(() => jsx('a', {href: url, download: 'raw.png', children: 'Raw'}));
+};
+window.startLifecycle = function startLifecycle(bytes, mode, hydrate = false) {
+  window.unmount();
+  lifecycleBlob = new Blob([new Uint8Array(bytes)], {type: 'image/png'});
+  lifecycleProps = {mode, alt: 'original', filename: 'original.png', children: 'Original'};
+  const container = document.getElementById('root');
+  if (hydrate) {
+    container.innerHTML = renderToString(lifecycleElement());
+    if (container.querySelector('[src], [href]')) throw new Error('SSR allocated a resource URL');
+    root = hydrateRoot(container, lifecycleElement(), {onRecoverableError(error) { throw error; }});
+  } else {
+    root = createRoot(container);
+    flushSync(() => root.render(lifecycleElement()));
+  }
+};
+window.updateLifecycle = function updateLifecycle(props, bytes) {
+  lifecycleProps = {...lifecycleProps, ...props};
+  if (bytes) lifecycleBlob = new Blob([new Uint8Array(bytes)], {type: 'image/png'});
+  flushSync(() => root.render(lifecycleElement()));
+};
+
+class ValidationBoundary extends React.Component {
+  state = {failed: false};
+  static getDerivedStateFromError() { return {failed: true}; }
+  componentDidCatch(error) {
+    window.validationError = {type: error.name, message: error.message};
+  }
+  render() { return this.state.failed ? null : this.props.children; }
+}
+window.invalidFilename = function invalidFilename(filename) {
+  window.unmount();
+  window.validationError = undefined;
+  root = createRoot(document.getElementById('root'));
+  flushSync(() => root.render(React.createElement(ValidationBoundary, null,
+    React.createElement(api.PassiveObjectUrlDownload, {
+      // An invalid Blob makes validation order observable without mocking native APIs.
+      blob: {}, filename,
+    }, 'Invalid'))));
+};
+
 // mountPreview's defensive catch requires a DOM setter/ref failure in a committed
 // native img; supported engines cannot produce that without a test double.
 // Native allocation failures likewise require engine resource exhaustion. The
-// download attachment failure is reachable with an empty filename and is tested.
+// download attachment failure likewise requires a DOM setter/ref failure because
+// invalid filenames are rejected during render, before allocation.

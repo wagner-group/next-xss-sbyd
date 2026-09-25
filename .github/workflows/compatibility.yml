@@ -43,6 +43,7 @@ jobs:
       - run: npm ci
       - run: node node_modules/playwright-core/cli.js install --with-deps chromium firefox webkit
       - run: npm run test:sanitize-browser
+      - run: npm ci --prefix fixtures/next14
       - run: npm run test:object-url-browser
       - run: npm run test:frame-browser
 

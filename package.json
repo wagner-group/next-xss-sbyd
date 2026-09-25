@@ -20,7 +20,7 @@
     "test:sanitize-browser": "npm run build && node scripts/test-sanitize-browser.mjs",
     "test:toolchain": "node --test scripts/test-toolchain.mjs",
     "test:react": "node --test scripts/test-react-compatibility.mjs",
-    "test:object-url-browser": "npm run build && node scripts/test-object-url-browser.mjs",
+    "test:object-url-browser": "npm run build && node scripts/test-object-url-browser.mjs && node scripts/test-object-url-lifecycle.mjs",
     "test:frame-browser": "npm run build && node scripts/test-sanitized-frame-browser.mjs"
   },
   "devDependencies": {
