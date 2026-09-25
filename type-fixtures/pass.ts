@@ -217,13 +217,14 @@ SafeExternalIframe(legacyProps);
 // @ts-expect-error The deprecated sandbox type retains the fixed policy.
 const invalidLegacySandbox: SafeIframeSandbox = "allow-same-origin";
 
-// New and deprecated names retain the same unforgeable SafeValues type.
-import {trustedScriptUrl, trustedResourceUrl} from "next-xss-sbyd";
+// Trusted script URLs retain the unforgeable SafeValues type.
+import {trustedScriptUrl} from "next-xss-sbyd";
+// @ts-expect-error The former builder name has been removed.
+import {trustedResourceUrl} from "next-xss-sbyd";
+// @ts-expect-error The former type name has been removed.
 import type {TrustedResourceUrl} from "next-xss-sbyd";
 const scriptUrl: TrustedScriptUrl = trustedScriptUrl`/app.js`;
-const legacyScriptUrl: TrustedResourceUrl = scriptUrl;
-const renamedScriptUrl: TrustedScriptUrl = trustedResourceUrl`/legacy.js`;
-safeRenderToReadableStream(null, {bootstrapScripts: [legacyScriptUrl, {src: renamedScriptUrl}]});
+safeRenderToReadableStream(null, {bootstrapScripts: [scriptUrl, {src: scriptUrl}]});
 // @ts-expect-error Raw strings are not trusted script URLs.
 const rawScriptUrl: TrustedScriptUrl = "/raw.js";
 // @ts-expect-error Lookalike objects cannot forge SafeValues' private brand.

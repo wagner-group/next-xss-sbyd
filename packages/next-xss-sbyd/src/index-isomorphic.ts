@@ -1,5 +1,5 @@
-export {trustedScriptUrl, trustedResourceUrl} from "./trusted-script-url.js";
-export type {TrustedScriptUrl, TrustedResourceUrl} from "./trusted-script-url.js";
+export {trustedScriptUrl} from "./trusted-script-url.js";
+export type {TrustedScriptUrl} from "./trusted-script-url.js";
 export {safeScript, safeStyleSheet} from "safevalues";
 export type {SafeHtml, SafeScript, SafeStyleSheet} from "safevalues";
 export {htmlEscape} from "./html.js";

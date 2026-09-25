@@ -6,9 +6,3 @@ export type TrustedScriptUrl = SafeValuesTrustedResourceUrl;
 
 /** Constructs a trusted script URL from a developer-reviewed template literal. */
 export const trustedScriptUrl = safeValuesTrustedResourceUrl;
-
-/** @deprecated Use TrustedScriptUrl instead. */
-export type TrustedResourceUrl = TrustedScriptUrl;
-
-/** @deprecated Use trustedScriptUrl instead. */
-export const trustedResourceUrl = trustedScriptUrl;

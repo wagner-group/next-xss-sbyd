@@ -13,7 +13,12 @@ function linter() {
     overrideConfigFile: true,
     overrideConfig: [{
       files: ["**/*.tsx"],
-      languageOptions: {parser, parserOptions: {project: "./tsconfig.json", tsconfigRootDir: fixtures}},
+      languageOptions: {parser, parserOptions: {
+        project: "./tsconfig.json",
+        tsconfigRootDir: fixtures,
+        // Each test supplies different text for the same file, including in CI.
+        disallowAutomaticSingleRunInference: true,
+      }},
       plugins: {"xss-sbyd": plugin},
       rules: {
         "xss-sbyd/safe-jsx-urls-active": "error",
@@ -23,18 +28,17 @@ function linter() {
   });
 }
 
-test("ESLint accepts new, aliased, legacy, and upstream trusted script values", async () => {
+test("ESLint accepts new, aliased, and upstream trusted script values", async () => {
   const [result] = await linter().lintText(`
-    import {trustedScriptUrl, trustedResourceUrl} from "next-xss-sbyd";
-    import type {TrustedScriptUrl as Renamed, TrustedResourceUrl} from "next-xss-sbyd";
+    import {trustedScriptUrl} from "next-xss-sbyd";
+    import type {TrustedScriptUrl as Renamed} from "next-xss-sbyd";
     import {trustedResourceUrl as upstream} from "safevalues";
     const renamed: Renamed = trustedScriptUrl\`/app.js\`;
-    const legacy: TrustedResourceUrl = trustedResourceUrl\`/legacy.js\`;
     export const content = <>
       <script src={renamed} /><script {...{src: renamed}} />
       <iframe src={renamed} /><link rel="stylesheet" href={renamed} />
       <svg><use href={renamed} /></svg>
-      <script src={legacy} /><script src={upstream\`/upstream.js\`} />
+      <script src={upstream\`/upstream.js\`} />
     </>;
   `, {filePath: "app/valid.tsx"});
   assert.deepEqual(result.messages, []);
@@ -42,15 +46,14 @@ test("ESLint accepts new, aliased, legacy, and upstream trusted script values", 
 
 test("ESLint rejects unsafe flows with TrustedScriptUrl diagnostics", async () => {
   const [result] = await linter().lintText(`
-    import type {TrustedScriptUrl as Renamed, TrustedResourceUrl} from "next-xss-sbyd";
+    import type {TrustedScriptUrl as Renamed} from "next-xss-sbyd";
     declare const raw: string;
     declare const unchecked: any;
     const cast = raw as Renamed;
-    const legacyCast = raw as TrustedResourceUrl;
     const bypass: Renamed = unchecked;
     export const content = <script src={raw} />;
   `, {filePath: "app/valid.tsx"});
-  assert.deepEqual(result.messages.map(({messageId}) => messageId), ["cast", "cast", "any", "active"]);
+  assert.deepEqual(result.messages.map(({messageId}) => messageId), ["cast", "any", "active"]);
   for (const message of result.messages.filter(({messageId}) => messageId !== "any")) {
     assert.match(message.message, /TrustedScriptUrl/u);
   }

@@ -328,9 +328,7 @@ They do not sanitize the data themselves.
 
 `TrustedScriptUrl` and its template builder `trustedScriptUrl` mark URLs whose
 JavaScript is trusted to execute. They use the existing SafeValues runtime brand.
-The former names `TrustedResourceUrl` and `trustedResourceUrl` remain deprecated
-aliases; update imports to the new names. Active iframe and other resource sinks
-continue to require this same trust.
+Active iframe and other resource sinks continue to require this same trust.
 
 ## Duplicate SafeValues installations
 
