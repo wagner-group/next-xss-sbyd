@@ -14,7 +14,11 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
+      - run: npm ci --strict-peer-deps
+      - name: Check TypeScript and ESLint parser compatibility
+        run: npm run test:toolchain
+      - name: Check exact React and React DOM compatibility
+        run: npm run test:react
       - run: npm run typecheck
       - run: npm run test:runtime
       - run: npm run test:eslint
