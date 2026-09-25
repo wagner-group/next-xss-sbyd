@@ -1,5 +1,7 @@
 # Sanitizing formatted HTML
 
+Prefer ordinary text-only JSX (`<p>{text}</p>`) when formatting is unnecessary.
+
 Use `sanitizeUserHtml` to display untrusted HTML while preserving permitted
 formatting, images, and media. It removes disallowed markup and returns `SafeHtml`.
 Pass that value to `SafeBlock`, which renders it in the element named by `as`:
@@ -56,6 +58,46 @@ fallback on the server and pass rendered content or the fallback decision down,
 rather than re-sanitizing that input during client rendering. Do not serialize
 `SafeHtml` objects across environments (see Transport and SafeBlock below). Avoid sanitizing large documents on unrelated
 renders: synchronous parsing can block the browser.
+
+## Convenience view and DOM refs
+
+`SanitizedHtmlView` accepts untrusted HTML as a required `value: string` and applies
+exactly the same fixed sanitizer policy on every render:
+
+```tsx
+"use client";
+
+import {useRef} from "react";
+import {SanitizedHtmlView} from "next-xss-sbyd/sanitized-html-view";
+
+export function ArticlePreview({source}: {source: string}) {
+  const article = useRef<HTMLElement>(null);
+  return <>
+    <button onClick={() => article.current?.scrollIntoView()}>Read preview</button>
+    <SanitizedHtmlView as="article" value={source} ref={article} className="prose" />
+  </>;
+}
+```
+
+The default container is `div`; `article`, `aside`, `footer`, `header`, `main`,
+`nav`, `section`, and `span` are also supported. Ordinary presentation props apply
+to the outer container. React 18 and 19 object/callback refs target that container;
+use them for reading, scrolling, and selection. Post-sanitization HTML mutation is
+outside the safe contract. `children`, `html`, `innerHTML`, and raw HTML props are
+reserved in the types and rejected at runtime, including forged spreads.
+
+Pass the original string across a Server/Client Component boundary and sanitize in
+the receiving client component, as above. For server-only output, import the same
+subpath in a Server Component and omit the ref; its server export sanitizes and
+renders locally. Never serialize branded `SafeHtml` through RSC. `SafeBlock` still
+requires `html: SafeHtml` and remains available for callers that own sanitization.
+
+The view resolves the browser or Node sanitizer through the existing conditional
+`sanitize` export. Edge and DOM-less workers throw explicitly. An empty string
+renders an empty container; repeated renders sanitize again without a global cache.
+Invalid inputs and sanitizer errors propagate to the render caller or a client error
+boundary, with no unsanitized fallback. The parser/hydration and input-size caveats
+above also apply to this convenience API.
 
 ## Exact policy
 

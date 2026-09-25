@@ -71,6 +71,14 @@
     "./route-handler": {
       "types": "./dist/route-handler.d.ts",
       "default": "./dist/route-handler.js"
+    },
+    "./sanitized-html-view": {
+      "react-server": {
+        "types": "./dist/sanitized-html-view-server.d.ts",
+        "default": "./dist/sanitized-html-view-server.js"
+      },
+      "types": "./dist/sanitized-html-view.d.ts",
+      "default": "./dist/sanitized-html-view.js"
     }
   },
   "types": "./dist/index.d.ts",

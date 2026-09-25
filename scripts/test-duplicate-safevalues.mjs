@@ -15,7 +15,7 @@ const safeA = await import(pathToFileURL(new URL("dist/mjs/index.js", copyA).pat
 const safeB = await import(pathToFileURL(new URL("dist/mjs/index.js", copyB).pathname));
 const reviewedA = await import(pathToFileURL(new URL("dist/mjs/restricted/reviewed.js", copyA).pathname));
 const reviewedB = await import(pathToFileURL(new URL("dist/mjs/restricted/reviewed.js", copyB).pathname));
-const {SafeResponse} = await import("next-xss-sbyd");
+const {SafeBlock, SafeResponse} = await import("next-xss-sbyd");
 
 function make(reviewed) {
   const options = {justification: "Milestone 0 duplicate-package interoperability probe"};
@@ -63,6 +63,7 @@ console.log("Outcome B: compatible physical copies reject cross-copy values befo
 
 const foreignHtml = make(reviewedB).html;
 assertRejectsActionably(() => new SafeResponse(foreignHtml));
+assertRejectsActionably(() => SafeBlock({html: foreignHtml}));
 console.log("Milestone 1 regression: SafeResponse rejects foreign SafeHtml with dedupe guidance.");
 
 function assertRejectsActionably(attempt) {

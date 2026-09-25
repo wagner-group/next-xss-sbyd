@@ -1,5 +1,5 @@
 import {createElement} from "react";
-import type {ComponentPropsWithoutRef, HTMLAttributes, ReactElement} from "react";
+import type {ComponentPropsWithoutRef, HTMLAttributes, ReactElement, Ref} from "react";
 import type {SafeHtml, SafeScript, SafeStyleSheet, TrustedResourceUrl} from "safevalues";
 import {unwrapHtml, unwrapResourceUrl, unwrapScript, unwrapStyleSheet} from "./internal/unwrap.js";
 import type {CspNonce} from "./csp.js";
@@ -16,9 +16,14 @@ export interface SafeBlockProps extends Omit<HTMLAttributes<HTMLElement>, "child
 }
 
 /** Renders a validated SafeHtml fragment in a closed set of inert containers. */
-export function SafeBlock({as = "div", html, ...props}: SafeBlockProps): ReactElement {
+export function SafeBlock(props: SafeBlockProps): ReactElement {
+  return renderSafeBlock(props);
+}
+
+/** Shared branded HTML sink; the optional ref is for the convenience view. */
+export function renderSafeBlock({as = "div", html, ...props}: SafeBlockProps, ref?: Ref<HTMLElement>): ReactElement {
   if (!SAFE_BLOCK_TAGS.has(as)) throw new TypeError(`Unsafe SafeBlock container: ${JSON.stringify(as)}`);
-  return createElement(as, {...props, dangerouslySetInnerHTML: {__html: unwrapHtml(html)}});
+  return createElement(as, {...props, ...(ref === undefined ? {} : {ref}), dangerouslySetInnerHTML: {__html: unwrapHtml(html)}});
 }
 
 export type SafeIframeSandbox = "" | "allow-scripts";
