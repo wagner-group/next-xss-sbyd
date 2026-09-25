@@ -31,7 +31,7 @@ jobs:
       - run: npm run test:duplicate
 
   sanitizer-browsers:
-    name: sanitizer Chromium, Firefox, and WebKit
+    name: sanitizer and object URLs in Chromium, Firefox, and WebKit
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -43,6 +43,8 @@ jobs:
       - run: npm ci
       - run: node node_modules/playwright-core/cli.js install --with-deps chromium firefox webkit
       - run: npm run test:sanitize-browser
+      - run: npm ci --prefix fixtures/next14
+      - run: npm run test:object-url-browser
       - run: npm run test:frame-browser
 
   compatibility:

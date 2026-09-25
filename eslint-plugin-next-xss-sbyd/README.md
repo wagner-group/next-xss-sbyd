@@ -41,6 +41,7 @@ lint migration preset.
 
 | Rule | Default | Operation checked |
 | --- | --- | --- |
+| `no-object-url` | error | Native object URL references and named access on unresolved receivers |
 | `no-danger` | error | Raw JSX HTML insertion and `__html` objects |
 | `no-unsafe-html-response` | error | `Response`/`NextResponse` constructors and unchecked returned responses, including typed fetch/helper calls, in route, middleware, proxy, and configured server files |
 | `no-unsafe-api-send` | error | Raw text/bytes and safe HTML/stream values at ordinary `send`, `write`, and `end` calls on Pages/Node responses |
