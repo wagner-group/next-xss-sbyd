@@ -13,6 +13,13 @@ For adoption guidance, see [building a new application](docs/newcode.md) or
 `next-xss-sbyd` requires that the application be written in
 TypeScript with type information.
 
+Use the latest patch release of Node.js 22 (22.22.2 or later), 24 (24.15.0 or later), or 26.
+Node.js 24 is the recommended LTS release; Node.js 26 is also supported.
+Upgrade Node.js before migrating to this module if you use Node.js 20 or 21,
+which are no longer supported. Other end-of-life Node.js releases are unsupported
+as well. CI tests the runtime, ESLint plugin, and Next.js 14–16 compatibility on
+Node.js 22, 24, and 26.
+
 
 ## ESLint plugin
 
