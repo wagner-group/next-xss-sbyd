@@ -188,44 +188,37 @@ content because that can effectively defeat sandboxing.
 Run a production build in staging (`next build`, then `next start`), deliberately
 selecting enforcement or report-only mode. `next dev` has different rendering/tooling
 behavior and an internal eval allowance, so it cannot validate the deployed policy.
-Run this initial-response Playwright check against that deployment. Adapt the URL and
-any intentionally unprotected routes:
+Use the [Playwright CSP fixture](playwright.md) against that deployment. It collects
+unexpected violations automatically and checks the enforcing header associated with
+the current document. Adapt the route and script selector to your application:
 
 ```ts
-import {expect, test} from "@playwright/test";
+import {test} from "next-xss-sbyd/playwright";
+import {expect} from "@playwright/test";
 
-test("production responses enforce the nonce CSP", async ({page}) => {
-  const response = await page.goto("/account");
-  expect(response).not.toBeNull();
+test("production responses enforce the nonce CSP", async ({page, csp}) => {
+  await page.goto("/account");
+  await csp.assertNoncePolicy(page, {scriptSelector: "script"});
+  await expect(page.getByRole("heading", {name: "Account"})).toBeVisible();
 
-  const headers = response!.headers();
-  expect(headers["content-security-policy-report-only"]).toBeUndefined();
-  const policy = headers["content-security-policy"];
-  expect(policy).toBeTruthy();
-
-  const nonce = /(?:^|;)\s*script-src[^;]*'nonce-([^']+)'/.exec(policy!)?.[1];
-  expect(nonce).toBeTruthy();
-
-  const html = await response!.text();
-  const scriptNonces = [...html.matchAll(/<script\b[^>]*>/giu)]
-    .map(([tag]) => /\bnonce=["']([^"']+)["']/iu.exec(tag)?.[1]);
-  expect(scriptNonces.length).toBeGreaterThan(0);
-  expect(scriptNonces.every((value) => value === nonce)).toBe(true);
+  await page.reload();
+  await csp.assertNoncePolicy(page, {scriptSelector: "script"});
 });
 ```
 
 Set `use.baseURL` in `playwright.config.ts`, or replace `"/account"` with an absolute
-deployed URL. The assertion inspects server HTML rather than the live DOM because a
-nonce-trusted script may legitimately insert nonce-free descendants under
-`'strict-dynamic'`.
+deployed URL. `script` checks framework scripts too; the fixture guide explains
+explicit exclusions for inert data blocks and nonce-free descendants permitted by
+`'strict-dynamic'`. Keep behavior assertions for the application's actual interactive
+features. The reload check also rejects nonce reuse between the two documents.
 
-This checks only the initial response. Also verify stylesheet loading, first paint,
-hydration, and later style insertion. Continue after hydration: navigate
+The nonce assertion does not prove rendering or interactivity. Also verify stylesheet
+loading, first paint, hydration, and later style insertion. Continue after hydration: navigate
 with `<Link>`, reopen dialogs, change selection/tab/switch, toggle themes, and show and
 dismiss toasts. Measure image placement, hidden labels, focus restoration, scroll
 locking, and computed styling. Wait for observable UI state and report delivery;
-checking the console immediately after a click misses asynchronous failures. Install
-a test-side listener with `page.addInitScript` before application scripts. The
+checking the console immediately after a click misses asynchronous failures. The
+fixture installs its observer before application scripts. The
 [production dependency recipes](csp-style-integrations.md) describe the fixture,
 version pins, and review of stylesheet elements inserted by Radix, next-themes, and
 Sonner. A broken layout or accessibility behavior cannot be classified as benign to

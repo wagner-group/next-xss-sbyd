@@ -35,7 +35,7 @@ export class CspCollector implements CspAssertions {
   private readonly initialResponses = new Set<Response>();
   private readonly requests = new Map<Frame, NavigationEvidence>();
   private readonly navigationEvidence = new WeakMap<Request, NavigationEvidence>();
-  private readonly navigationTasks = new Set<Promise<void>>();
+  private readonly navigationTasks = new Map<Frame, Promise<void>>();
   private readonly nonces = new Map<string, string>();
   private readonly key: string;
   private readonly binding: string;
@@ -46,7 +46,8 @@ export class CspCollector implements CspAssertions {
   private disposed = false;
 
   constructor(private readonly context: BrowserContext, private readonly browser: CspViolation["browser"],
-    private readonly quietMs: number, private readonly timeoutMs: number, id: string) {
+    private readonly quietMs: number, private readonly timeoutMs: number, id: string,
+    private readonly associationTimeoutMs = 30_000, private readonly project: string = browser) {
     this.key = `__csp_observer_${id}`;
     this.binding = `__csp_delivery_${id}`;
   }
@@ -107,22 +108,26 @@ export class CspCollector implements CspAssertions {
     if (!response) return; // A same-document navigation has no new response.
     const request = this.requests.get(frame);
     const task = this.associateResponse(frame, response, request);
-    this.navigationTasks.add(task);
-    void task.finally(() => this.navigationTasks.delete(task));
+    this.navigationTasks.set(frame, task);
+    void task.finally(() => {
+      if (this.navigationTasks.get(frame) === task) this.navigationTasks.delete(frame);
+    });
   };
 
   private async associateResponse(frame: Frame, response: Response, request: NavigationEvidence | undefined): Promise<void> {
     try {
       // A popup's commit can precede replacement of its initial blank observer.
       // Keep this response until the committed document has initialized.
-      await frame.waitForLoadState("domcontentloaded", { timeout: this.timeoutMs });
+      await frame.waitForLoadState("domcontentloaded", { timeout: this.associationTimeoutMs });
       const token = await this.documentToken(frame);
       // Fail closed on a competing navigation. Never bind by URL (reloads share URLs).
       if (!request || this.requests.get(frame) !== request || response.request() !== request.request || request.knownDocuments.has(token)) return;
       const doc = this.documents.get(token);
       if (doc && doc.frame === frame && !doc.response && /^https?:/.test(doc.url)) doc.response = response;
     } catch {
-      // A destroyed document has no assertion evidence. Live documents are checked by flush.
+      if (!this.disposed && !frame.isDetached() && !frame.page().isClosed() && this.requests.get(frame) === request) {
+        this.error(`response association failed or timed out after ${this.associationTimeoutMs} ms (${this.frameId(frame)}, ${redactCspURL(frame.url())}); the document CSP header was not checked`);
+      }
     }
   }
 
@@ -145,7 +150,7 @@ export class CspCollector implements CspAssertions {
     let doc = this.documents.get(message.documentId);
     if (message.kind === "ready" && !doc) {
       doc = { id: `document-${this.documents.size + 1}`, frame, pageId: this.pageId(page),
-        frameId: this.frameId(frame), sequence: 0, url: redactCspURL(message.documentURL) };
+        frameId: this.frameId(frame), sequence: 0, url: redactCspURL(message.documentURL) || redactCspURL(frame.url()) || redactCspURL(frame.parentFrame()?.url() ?? "") };
       this.documents.set(message.documentId, doc);
     }
     if (!doc || doc.frame !== frame) {
@@ -153,13 +158,14 @@ export class CspCollector implements CspAssertions {
       return;
     }
     if (message.kind === "event") {
+      if (!message.disposition) this.error(`missing violation disposition (${doc.id}, ${doc.url})`);
       if (message.localSequence <= doc.sequence) return; // Transport retry, not native-event deduplication.
       if (message.localSequence !== doc.sequence + 1) this.error(`event sequence gap (${doc.id}, ${doc.url})`);
       doc.sequence = message.localSequence;
       this.records.push(Object.freeze({ sequence: this.records.length + 1, pageId: doc.pageId,
         frameId: doc.frameId, documentId: doc.id, browser: this.browser,
-        documentURL: redactCspURL(message.documentURL), effectiveDirective: message.effectiveDirective ?? "",
-        disposition: message.disposition ?? "enforce", blockedURI: redactCspURL(message.blockedURI ?? ""),
+        documentURL: redactCspURL(message.documentURL) || doc.url, effectiveDirective: message.effectiveDirective ?? "",
+        disposition: message.disposition ?? "", blockedURI: redactCspURL(message.blockedURI ?? ""),
         sourceURL: redactCspURL(message.sourceURL ?? ""), line: message.line ?? 0, column: message.column ?? 0 }));
       this.lastArrival = Date.now();
     } else if (message.localSequence !== doc.sequence) {
@@ -195,11 +201,19 @@ export class CspCollector implements CspAssertions {
         const doc = this.documents.get(token);
         if (!doc || doc.frame !== frame) throw new Error("Missing ready acknowledgement");
         documents.push(doc.id);
-      } catch {
-        throw this.error(`failed document acknowledgement (${this.frameId(frame)}, ${redactCspURL(frame.url())})`);
+      } catch (error) {
+        // A removed frame has no live document to acknowledge. A navigating frame
+        // is checked again on the next pass, after its new context initializes.
+        if (frame.isDetached() || frame.page().isClosed()) return;
+        if (/Execution context was destroyed|Cannot find context with specified id|most likely because of a navigation/i.test(String(error))) {
+          documents.push(`navigating-${this.frameId(frame)}`);
+          return;
+        }
+        // Do not expose arbitrary browser error text: it can contain page secrets.
+        const cause = /CSP observer document was replaced|CSP observer missing initialization in replacement document|CSP observer acknowledgement failed|Missing CSP observer initialization|Missing ready acknowledgement/.exec(String(error))?.[0];
+        throw this.error(`failed document acknowledgement (${this.frameId(frame)}, ${redactCspURL(frame.url())})${cause ? `: ${cause}` : ""}`);
       }
     })), deadline);
-    await this.bounded(Promise.all([...this.navigationTasks]), deadline);
     if (this.errors.length) throw new Error(this.errors.join("\n"));
     return documents.sort().join(",");
   }
@@ -212,18 +226,20 @@ export class CspCollector implements CspAssertions {
     await this.flushUntil(Date.now() + this.timeoutMs);
   }
   private async flushUntil(deadline: number): Promise<void> {
-    let signature = "";
     let quietSince = Date.now();
     try {
       for (;;) {
         const current = await this.checkpoint(deadline);
-        if (current !== signature) { signature = current; quietSince = Date.now(); }
+        // Require event silence and fresh acknowledgements, not stable frame
+        // membership: widgets may continuously mount and remove clean frames.
+        if (current.includes("navigating-")) quietSince = Date.now();
         quietSince = Math.max(quietSince, this.lastArrival);
         if (Date.now() - quietSince >= this.quietMs) return;
         if (Date.now() >= deadline) throw new Error("CSP collection timed out");
         await new Promise(resolve => setTimeout(resolve, Math.min(20, this.quietMs, Math.max(1, deadline - Date.now()))));
       }
     } catch {
+      if (this.errors.length) throw new Error(this.errors.join("\n"));
       throw this.error("flush failed or timed out; live documents did not acknowledge a quiet interval");
     }
   }
@@ -233,7 +249,11 @@ export class CspCollector implements CspAssertions {
     if (page.context() !== this.context) throw new Error("Nonce assertion requires a page in the observed context");
     await this.flush();
     const token = await this.documentToken(page.mainFrame());
-    const doc = this.documents.get(token)!;
+    const doc = this.documents.get(token);
+    if (!doc) throw new Error("Nonce assertion is missing the current document acknowledgement");
+    const association = this.navigationTasks.get(page.mainFrame());
+    if (association) await this.bounded(association, Date.now() + this.associationTimeoutMs);
+    if (this.errors.length) throw new Error(this.errors.join("\n"));
     if (!doc.response || !/^https?:/.test(doc.response.url())) {
       throw new Error("Cannot identify the HTTP response that created this document; its CSP header was not checked");
     }
@@ -267,6 +287,9 @@ export class CspCollector implements CspAssertions {
       typeof action !== "function" || typeof assertBlocked !== "function") {
       throw new Error("CSP expectation requires exact directive, disposition, blocked URI, positive count, and two callbacks");
     }
+    if (!expected.frame || typeof expected.frame.page !== "function" || typeof expected.frame.isDetached !== "function") {
+      throw new Error("CSP expectation requires a Frame in the observed context");
+    }
     if (expected.frame.page().context() !== this.context) throw new Error("CSP expectation frame is outside the observed context");
     this.expecting = true;
     try {
@@ -278,7 +301,10 @@ export class CspCollector implements CspAssertions {
       await action();
       const deadline = Date.now() + this.timeoutMs;
       for (;;) {
-        await this.flushUntil(deadline);
+        // Each flush gets a full acknowledgement budget. The separate action
+        // deadline reports a missing event without poisoning observation state.
+        await this.flush();
+        if (this.expectationDocument.replaced || await this.documentToken(expected.frame) !== token) throw new Error("Expectation document was replaced");
         this.checkInterval(expected, doc, start, false);
         if (this.records.length - start >= expected.count) break;
         if (Date.now() >= deadline) throw new Error("Expected CSP violation count was not received");
@@ -307,12 +333,12 @@ export class CspCollector implements CspAssertions {
     if (unexpected.length) {
       const groups = new Map<string, number>();
       for (const record of unexpected) {
-        const detail = `${record.effectiveDirective} (${record.disposition}) ${record.documentId} ${record.documentURL} at ${record.sourceURL}:${record.line}:${record.column}`;
+        const detail = `${record.effectiveDirective} (${record.disposition}) ${record.documentId}/${record.frameId} ${record.documentURL} at ${record.sourceURL}:${record.line}:${record.column}`;
         groups.set(detail, (groups.get(detail) ?? 0) + 1);
       }
       const details = [...groups].slice(0, 10).map(([detail, count]) => `${count} × ${detail}`);
       if (groups.size > 10) details.push("Further locations are listed in csp-observation.json");
-      throw new Error(`Unexpected CSP violations: ${unexpected.length}\n${details.join("\n")}`);
+      throw new Error(`Unexpected CSP violations [${this.browser}, project ${this.project}]: ${unexpected.length}\n${details.join("\n")}`);
     }
   }
   /** Produce a privacy-safe attachment; raw headers and nonces never leave assertion memory. */

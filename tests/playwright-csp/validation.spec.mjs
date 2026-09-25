@@ -7,6 +7,9 @@ for (const [name, options] of [
   ["zero timeout", {timeoutMs: 0}],
   ["fractional timeout", {timeoutMs: 100.5}],
   ["null timeout", {timeoutMs: null}],
+  ["zero association timeout", {associationTimeoutMs: 0}],
+  ["fractional association timeout", {associationTimeoutMs: 100.5}],
+  ["null association timeout", {associationTimeoutMs: null}],
 ]) {
   test.describe(name, () => {
     test.use({cspObservation: options});

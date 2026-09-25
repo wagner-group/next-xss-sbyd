@@ -3,7 +3,7 @@ import { test as base, type Frame, type Page } from "@playwright/test";
 import { CspCollector } from "./internal/playwright-collector.js";
 
 export interface CspOptions {
-  cspObservation: { quietMs?: number; timeoutMs?: number };
+  cspObservation: { quietMs?: number; timeoutMs?: number; associationTimeoutMs?: number };
 }
 export interface CspFixtures { csp: CspAssertions }
 export interface CspViolation {
@@ -14,7 +14,7 @@ export interface CspViolation {
   readonly browser: "chromium" | "firefox" | "webkit";
   readonly documentURL: string;
   readonly effectiveDirective: string;
-  readonly disposition: "enforce" | "report";
+  readonly disposition: "enforce" | "report" | "";
   readonly blockedURI: string;
   readonly sourceURL: string;
   readonly line: number;
@@ -46,10 +46,14 @@ export const test = base.extend<CspFixtures & CspOptions>({
   csp: [async ({ context, browserName, bypassCSP, contextOptions, cspObservation }, use, testInfo) => {
     const quietMs = cspObservation.quietMs === undefined ? 100 : cspObservation.quietMs;
     const timeoutMs = cspObservation.timeoutMs === undefined ? 2_000 : cspObservation.timeoutMs;
-    const collector = new CspCollector(context, browserName, quietMs, timeoutMs, randomUUID().replaceAll("-", ""));
+    const associationTimeoutMs = cspObservation.associationTimeoutMs === undefined ? 30_000 : cspObservation.associationTimeoutMs;
+    const collector = new CspCollector(context, browserName, quietMs, timeoutMs, randomUUID().replaceAll("-", ""), associationTimeoutMs, testInfo.project.name);
     try {
       if (![quietMs, timeoutMs].every(value => Number.isSafeInteger(value) && value > 0) || quietMs >= timeoutMs) {
         throw new Error("cspObservation requires positive integer quietMs < timeoutMs");
+      }
+      if (!Number.isSafeInteger(associationTimeoutMs) || associationTimeoutMs <= 0) {
+        throw new Error("cspObservation requires a positive integer associationTimeoutMs");
       }
       if (bypassCSP || contextOptions.bypassCSP) throw new Error("CSP observation does not support bypassCSP: true");
       if (context.pages().length) throw new Error("CSP observation requires a context without precreated pages; do not replace context or page fixtures");
@@ -67,5 +71,5 @@ export const test = base.extend<CspFixtures & CspOptions>({
         });
       } finally { collector.dispose(); }
     }
-  }, { auto: true, timeout: 0 }],
+  }, { auto: true, timeout: 60_000 }],
 });

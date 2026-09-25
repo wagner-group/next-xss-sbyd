@@ -3,7 +3,7 @@ import {expect} from "@playwright/test";
 
 test("production hydration, styles, navigation and fresh response nonces", async ({page, csp}) => {
   await page.goto("/");
-  await csp.assertNoncePolicy(page, {scriptSelector: "script[nonce]"});
+  await csp.assertNoncePolicy(page, {scriptSelector: "script"});
   await expect(page.locator("html")).toHaveAttribute("data-authorized", "yes");
   await expect(page.getByRole("heading")).toHaveCSS("color", "rgb(12, 34, 56)");
   await page.getByRole("button", {name: "Count 0"}).click();
@@ -18,7 +18,7 @@ test("production hydration, styles, navigation and fresh response nonces", async
   expect(await page.locator("#authorized").evaluate((script) => script.nonce)).toBe(firstNonce);
   await csp.flush();
   await page.reload();
-  await csp.assertNoncePolicy(page, {scriptSelector: "script[nonce]"});
+  await csp.assertNoncePolicy(page, {scriptSelector: "script"});
   expect(await page.locator("#authorized").evaluate((script) => script.nonce)).not.toBe(firstNonce);
   await expect(page.getByRole("button", {name: "Count 0"})).toBeVisible();
   await expect(page.getByRole("heading")).toHaveCSS("color", "rgb(12, 34, 56)");

@@ -18,8 +18,11 @@ npx playwright install --with-deps chromium firefox webkit
 ```
 
 The optional peer range is `>=1.62.1 <2`; pin the runner and browser binaries together
-in CI. This entry point is for Node.js tests only. Production imports do not load or
-require Playwright.
+in CI. Version 1.62.1 is the minimum validated runner/browser matrix for this
+fixture, not the earliest release containing its APIs. Older runners and their
+browser binaries have not been validated; lowering the peer range requires that
+compatibility coverage. This entry point is for Node.js tests only. Production imports
+do not load or require Playwright.
 
 Change the `test` import in existing tests or their shared fixture module. Continue
 importing `expect` from Playwright:
@@ -52,6 +55,52 @@ Run against `next build` followed by `next start`, and separately against the ac
 staging host or reverse proxy. Development permissions can differ from production;
 local success cannot detect a proxy removing headers. Exercise each supported browser.
 
+## First run on an existing suite
+
+Start with a representative production workflow. An `Unexpected CSP violations`
+failure includes the browser project, document/frame identity, directive, disposition,
+and sanitized location. `enforce` means an enforcing policy reported a violation;
+`report` means a report-only policy found an incompatibility. Check the failing
+workflow's scripts, styles, requests, and response headers before changing the policy.
+Keep the functional assertions: a heading rendering does not prove hydration works.
+
+Open the test result's `csp-observation.json` attachment for the complete event list,
+expected sequence numbers, observation errors, and coverage limitations. A document
+acknowledgement or initialization error means collection was incomplete; fix the
+harness or navigation problem before interpreting a clean event list. Locations
+are redacted, so compare their origin and pathname with the failing workflow.
+
+Fix unexpected violations in the application or its integration. Use `expectViolation`
+only for a deliberate blocked attack whose exact native event and blocked behavior
+you can assert. It is not a suppression mechanism for flaky widgets or known defects.
+Test helpers such as `page.addScriptTag()` and `page.addStyleTag()` can themselves
+violate CSP; use authorized resources/nonces where appropriate and keep deliberate
+unauthorized insertions inside a focused attack expectation.
+
+### Compatibility checklist
+
+- `page.setContent()` and any `document.open()` replace observer listeners and are
+  incompatible with the entire fixture. They fail observation at teardown even when
+  the test never requests `csp` or asserts a nonce policy. Serve harness HTML over HTTP
+  and navigate to it instead.
+- `bypassCSP: true` and contexts with precreated pages are rejected. Install the fixture
+  before the context's first page; use normal `test.use` context options.
+- `browser.newContext()` creates a context outside this fixture's observation. Use
+  the supplied `context` and its pages for CSP regression checks.
+- `next dev` does not establish production compatibility. Use `next build` / `next start`
+  and check the real staging proxy as well.
+- All origins are observed, including third-party frames and OAuth popups. Their
+  report-only violations fail tests too; there is no origin exclusion option. This
+  preserves the all-document contract and avoids silently excluding embedded content.
+  For a focused application test, you can block an optional third-party origin with
+  Playwright routing, for example
+  `await context.route("https://widget.example/**", route => route.abort())` before
+  navigation. That test no longer covers the widget or its real integration; keep a
+  separate test against the actual provider. Blocking a required payment or login
+  provider is not a substitute for testing that workflow.
+- Workers and service workers are outside DOM observation. Use independent checks for
+  their policies and behavior; a clean fixture result does not certify them.
+
 ## Assert the enforcing nonce policy
 
 Add explicit checks to representative protected routes and deployment smoke tests:
@@ -67,7 +116,18 @@ test("preferences enforce the nonce policy", async ({page, csp}) => {
 });
 ```
 
-Choose selectors for the scripts the application intends to authorize. The example
+Choose an explicit selector for the scripts the application intends to authorize.
+For a Next.js page, start with `{scriptSelector: "script"}`: this also checks framework
+bootstrap and hydration scripts. Do not use `script[nonce]`, which excludes the very
+scripts whose missing nonces you want to detect. `script` also selects inert JSON and
+JSON-LD data blocks, which need no nonce for execution; if those are intentionally
+unnonced, exclude them explicitly with
+`script:not([type="application/json"]):not([type="application/ld+json"])` and review
+other script types used by the application. Narrow selectors such as `#theme-setup script`
+check only that integration. Nonce-free descendants inserted by a trusted script can
+be permitted by `'strict-dynamic'` but will fail an assertion that selects them; choose
+the intended nonce-bearing scripts deliberately rather than treating every allowed
+script as required to carry a nonce. The example
 checks only scripts inside `#theme-setup`; it gives no assurance about omitted
 framework scripts. A selection must be nonempty and contain only script elements.
 The assertion reads their `.nonce` properties and the captured response that created
@@ -81,12 +141,14 @@ This checks the package's **strict nonce profile**, not every valid CSP design:
 - That policy must use `object-src 'none'` and `base-uri 'self'` or `'none'`.
   A `script-src-elem` override must use the same single nonce and `'strict-dynamic'`
   without those unsafe keywords; `script-src-attr`, if present, must be `'none'`.
+  Legacy handler policies using `'unsafe-hashes'` and hashes are rejected: this
+  profile disallows inline event handlers, even when another CSP design authorizes them.
 - Every selected script must have the policy nonce. Every additional enforcing
   policy must permit those scripts through that same nonce. Hash-only or URL-only
   authorization in another policy is outside this assertion's supported profile.
 
-Report-only headers and HTML meta policies alone fail. So do `setContent` documents,
-pages outside the fixture's context, and documents without reliable response evidence.
+Report-only headers and HTML meta policies alone fail. So do pages outside the
+fixture's context and documents without reliable response evidence.
 The assertion does not certify all directives, sanitization, or freedom from XSS.
 
 The reload above must receive a fresh nonce. Successful assertions in different
@@ -94,7 +156,10 @@ documents within one test reject nonce reuse, including reloading the same URL.
 Assertions after a Next.js link navigation that retains the document require its
 original nonce. Follow the link, check the resulting screen, and assert again; the
 fixture tracks document identity independently of URLs. These checks neither prove
-nonce unpredictability nor compare nonces across tests.
+nonce unpredictability nor compare nonces across tests. The nonce check validates
+syntax and a nonempty value, not a minimum length or entropy. Length alone cannot
+prove randomness: use the package nonce generator or an independently reviewed
+cryptographic generator, and never use a static nonce.
 
 ## Test a deliberate blocked attack
 
@@ -192,14 +257,23 @@ on full navigation, and `sequence` is arrival order within the test, starting at
 
 Use `await csp.flush()` before deliberately closing a page or fully navigating when
 the preceding interaction needs a collection checkpoint. It waits for live-document
-readiness, queued-event acknowledgement, and a quiet interval; it does not acknowledge
-violations. Defaults are 100 ms quiet time and a 2,000 ms collection timeout:
+readiness, queued-event acknowledgement, and a quiet interval without received CSP
+events; it does not acknowledge violations. Each pass checks the currently live
+documents. Adding or removing clean frames does not restart that interval, so widgets
+that continuously remount frames can finish collection. A newly attached frame is
+not promised its own full quiet interval, and future events remain outside the check. Defaults are 100 ms quiet time and a 2,000 ms collection timeout:
 
 ```ts
-test.use({cspObservation: {quietMs: 200, timeoutMs: 3_000}});
+test.use({cspObservation: {quietMs: 200, timeoutMs: 3_000, associationTimeoutMs: 30_000}});
 ```
 
-Both values must be positive finite integers, with `quietMs < timeoutMs`. Action and
+All three values must be positive finite integers, with `quietMs < timeoutMs`.
+`associationTimeoutMs` separately bounds response-to-document association, including
+streaming document readiness, and defaults to 30,000 ms. Increase it for deliberately
+slow streaming routes; increasing the quiet collection timeout is not necessary for
+that purpose. `timeoutMs` also bounds waiting for an expected violation.
+The automatic fixture has a 60,000 ms setup/teardown timeout; choose observation
+budgets that leave room for collection and attachment within that bound. Action and
 behavior callbacks remain subject to Playwright's overall test timeout. Missing
 initialization, failed acknowledgements, observed sequence gaps, page crashes, and
 collection timeouts fail observation. Teardown collects and reports failures even

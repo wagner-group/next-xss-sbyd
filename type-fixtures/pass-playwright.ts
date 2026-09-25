@@ -3,7 +3,7 @@ import {expect, mergeTests, test as base} from "@playwright/test";
 
 const applicationTest = base.extend<{account: string}>({account: "test-account"});
 const composed = mergeTests(test, applicationTest).extend<{route: string}>({route: "/"});
-composed.use({cspObservation: {quietMs: 50, timeoutMs: 1_000}, viewport: {width: 800, height: 600}});
+composed.use({cspObservation: {quietMs: 50, timeoutMs: 1_000, associationTimeoutMs: 30_000}, viewport: {width: 800, height: 600}});
 composed("fixture composition", async ({page, csp, route, account}) => {
   const assertions: CspAssertions = csp;
   await page.goto(route);

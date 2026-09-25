@@ -1,6 +1,7 @@
 /** Remove credentials and URL payloads before transport, matching, or diagnostics. */
 export function redactCspURL(value: string): string {
   if (!value || value === "inline" || value === "eval" || value === "wasm-eval" || value === "self" || value === "trusted-types-sink" || value === "trusted-types-policy") return value;
+  if (/^[a-z][a-z0-9+.-]*$/i.test(value)) return `${value.toLowerCase()}:`;
   try {
     const url = new URL(value);
     return url.protocol === "http:" || url.protocol === "https:" ? `${url.origin}${url.pathname}` : url.protocol;
@@ -33,6 +34,7 @@ export function installCspObserver({ binding, key }: { binding: string; key: str
   // This function must be self-contained: Playwright serializes its source.
   function redact(value: string): string {
     if (!value || value === "inline" || value === "eval" || value === "wasm-eval" || value === "self" || value === "trusted-types-sink" || value === "trusted-types-policy") return value;
+    if (/^[a-z][a-z0-9+.-]*$/i.test(value)) return `${value.toLowerCase()}:`;
     try {
       const url = new URL(value);
       return url.protocol === "http:" || url.protocol === "https:" ? `${url.origin}${url.pathname}` : url.protocol;
