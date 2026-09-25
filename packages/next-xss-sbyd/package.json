@@ -71,6 +71,16 @@
     "./route-handler": {
       "types": "./dist/route-handler.d.ts",
       "default": "./dist/route-handler.js"
+    },
+    "./sanitized-html-frame": {
+      "react-server": {
+        "types": "./dist/sanitized-html-frame-server.d.ts",
+        "default": "./dist/sanitized-html-frame-server.js"
+      },
+      "types": "./dist/sanitized-html-frame.d.ts",
+      "edge-light": "./dist/sanitized-html-frame.js",
+      "browser": "./dist/sanitized-html-frame.js",
+      "default": "./dist/sanitized-html-frame.js"
     }
   },
   "types": "./dist/index.d.ts",
