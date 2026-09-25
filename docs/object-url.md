@@ -27,15 +27,16 @@ policy permits only self-hosted images. Do not add `blob:` to active directives
 such as `script-src` or `frame-src`.
 
 For non-React code, `createPassiveObjectUrl(blob, use)` returns a frozen handle
-with `url`, `mediaType`, `use` and a live `revoked` getter. `use` defaults to
-`"download"`; previews require `"raster-preview"`. A private WeakMap authenticates
+with `url`, `mediaType`, `use` and a live `revoked` getter. `use` is required: pass
+`"download"` or `"raster-preview"` explicitly. A private WeakMap authenticates
 identity. Copies, serialized handles, arbitrary Blob strings and revoked handles
 cannot be attached. Handles from another package instance are also rejected.
 
 Use `attachPassiveObjectUrlPreview(image, handle)` or
 `attachPassiveObjectUrlDownload(anchor, handle, filename)`. Each returns a cleanup
-function which detaches its URL and revokes the handle. Each handle should have
-one owner: create a fresh handle per attachment, call cleanup before replacement
+function which detaches its URL and revokes the handle. Each handle permits only
+one attachment; a second attachment throws without changing the first. Create a
+fresh handle per attachment, call cleanup before replacement
 or removal, and revoke explicitly if attachment fails. `revokePassiveObjectUrl`
 is idempotent for authentic handles. Do not create URLs during a render function.
 
@@ -53,15 +54,26 @@ Ordinary navigation/resource validators still reject every `blob:` string. The
 handle is not a TrustedResourceUrl. There are no iframe, script, object or embed
 adapters. The adapters accept only their documented props and do not forward
 arbitrary attributes. The recommended ESLint preset rejects native creation,
-including typed aliases and statically resolved computed access; it has no
-filename/directory exemption. Only the checked implementation's single native
-call has a scoped, justified disable.
+including references passed as callbacks, typed aliases, destructuring, reflective
+invocation arguments and statically resolved computed access. Named
+`createObjectURL` access on `any`, `unknown` or unresolved receivers also reports.
+User-declared structural method types remain exempt, even when a native `URL`
+value is passed to them; computed names with no finite literal type and reflective
+property lookup need manual review. The rule has no filename/directory exemption.
+Only the checked implementation's single native call has a scoped, justified disable.
+
+The readable `url` property is retained for diagnostics and checking URL lifetime
+(for example, fetching it to verify revocation). It is not a safe URL brand or
+permission to use another sink. Direct DOM assignments and `window.open` can
+bypass the adapters and require application review.
 
 ## Browser evidence and limits
 
 `npm run test:object-url-browser` runs Chromium, Firefox and WebKit through
-Playwright. Verified versions: Chromium 151.0.7922.34, Firefox 153.0 and WebKit
-26.5 on Linux. It verifies actual PNG/JPEG/GIF decoding, downloaded file bytes,
+Playwright and writes the actual browser and React versions to
+`tmp/object-url/results.json` on each run. Lifecycle evidence currently uses
+React 19.2.8 on Linux; this suite has not verified React 18, which remains in the
+package peer range. It verifies actual PNG/JPEG/GIF decoding, downloaded file bytes,
 manual revocation, replacement/unmount cleanup, Strict Mode cleanup, failed
 renders and failed attachment, and download cleanup during click dispatch. DOM
 mutation observation records URLs so tests can verify that fetching them fails

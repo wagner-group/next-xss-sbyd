@@ -35,14 +35,14 @@ try {
         const loaded = new Promise(resolve => { frame.onload = resolve; });
         document.body.append(frame); await loaded;
         const foreign = frame.contentWindow;
-        const handle = foreign.api.createPassiveObjectUrl(new foreign.Blob(['bytes'],{type:'image/png'}));
+        const handle = foreign.api.createPassiveObjectUrl(new foreign.Blob(['bytes'],{type:'image/png'}), 'download');
         window.rejects(() => api.attachPassiveObjectUrlDownload(document.createElement('a'),handle,'x.png'));
         window.rejects(() => api.revokePassiveObjectUrl(handle));
         foreign.api.revokePassiveObjectUrl(handle); frame.remove();
       });
       // Actual retrieval proves revocation; no monkeypatching URL methods or mocks.
       await page.evaluate(async () => {
-        const h = api.createPassiveObjectUrl(new Blob(['bytes'], {type:'image/png'}));
+        const h = api.createPassiveObjectUrl(new Blob(['bytes'], {type:'image/png'}), 'download');
         if (await (await fetch(h.url)).text() !== 'bytes') throw new Error('fetch');
         api.revokePassiveObjectUrl(h);
         await new Promise(resolve => setTimeout(resolve,10));
@@ -141,7 +141,7 @@ try {
             const payload = `${syntax === 'html' ? '<!doctype html><html>' : '<html xmlns="http://www.w3.org/1999/xhtml">'}<script>globalThis.attacked=true;fetch('${origin}/executed?${id}')</script></html>`;
             const target = await context.newPage();
             await target.goto(origin);
-            const url = await target.evaluate(({payload,type}) => api.createPassiveObjectUrl(new Blob([payload],{type})).url,{payload,type:type+suffix});
+            const url = await target.evaluate(({payload,type}) => api.createPassiveObjectUrl(new Blob([payload],{type}), 'download').url,{payload,type:type+suffix});
             let navigationDownload;
             target.on('download', value => { navigationDownload = value; });
             try { await target.goto(url); } catch (error) {
@@ -166,7 +166,7 @@ try {
       assert.equal(await target.evaluate(() => globalThis.attacked),true);
       await target.close();
       if (name === 'chromium') await writeFile('tmp/object-url/coverage.json', JSON.stringify(await page.coverage.stopJSCoverage()));
-      report.push({engine:name,version:browser.version(),status:'passed',adversarialNavigations:cases.length});
+      report.push({engine:name,version:browser.version(),react:await page.evaluate(() => window.reactVersion),status:'passed',adversarialNavigations:cases.length});
       console.log(report.at(-1));
     } finally { await browser.close(); }
   }

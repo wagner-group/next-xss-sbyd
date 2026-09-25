@@ -505,6 +505,7 @@ The recommended configuration enables these rules:
 
 | Rule | Result | What it checks |
 | --- | --- | --- |
+| `no-object-url` | error | Native object URL references and named access on unresolved receivers |
 | `no-danger` | error | Raw HTML insertion in JSX |
 | `no-unsafe-html-response` | error | Unchecked HTML in Fetch and Next.js responses |
 | `no-unsafe-api-send` | error | Unsafe strings/bytes and safe objects sent through standard Node response methods; safe HTML requires `safeSend` or `safeEnd` |

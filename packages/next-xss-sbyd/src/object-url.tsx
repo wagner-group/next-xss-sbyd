@@ -17,7 +17,7 @@ export interface PassiveObjectUrl {
   readonly revoked: boolean;
 }
 
-type State = {url: string; use: PassiveObjectUrlUse; revoked: boolean};
+type State = {url: string; use: PassiveObjectUrlUse; revoked: boolean; attached: boolean};
 const handles = new WeakMap<PassiveObjectUrl, State>();
 
 function stateOf(handle: PassiveObjectUrl, use?: PassiveObjectUrlUse): State {
@@ -29,7 +29,7 @@ function stateOf(handle: PassiveObjectUrl, use?: PassiveObjectUrlUse): State {
 }
 
 /** Creates a browser-only capability; MIME declarations do not validate file bytes. */
-export function createPassiveObjectUrl(blob: Blob, use: PassiveObjectUrlUse = "download"): PassiveObjectUrl {
+export function createPassiveObjectUrl(blob: Blob, use: PassiveObjectUrlUse): PassiveObjectUrl {
   if (typeof window === "undefined" || typeof document === "undefined") {
     throw new TypeError("Passive object URLs require a browser document");
   }
@@ -42,7 +42,7 @@ export function createPassiveObjectUrl(blob: Blob, use: PassiveObjectUrlUse = "d
   }
   // eslint-disable-next-line xss-sbyd/no-object-url -- This is the checked implementation; native Blob MIME and permitted use were validated above.
   const url = URL.createObjectURL(blob);
-  const state: State = {url, use, revoked: false};
+  const state: State = {url, use, revoked: false, attached: false};
   const handle = Object.freeze({url, mediaType, use, get revoked() { return state.revoked; }}) as PassiveObjectUrl;
   handles.set(handle, state);
   return handle;
@@ -64,7 +64,9 @@ export function revokePassiveObjectUrl(handle: PassiveObjectUrl): void {
 export function attachPassiveObjectUrlPreview(image: HTMLImageElement, handle: PassiveObjectUrl): () => void {
   const state = stateOf(handle, "raster-preview");
   if (!(image instanceof HTMLImageElement)) throw new TypeError("Expected an HTML image element");
+  if (state.attached) throw new TypeError("Passive object URL already has an attachment");
   image.src = state.url;
+  state.attached = true;
   return function detachPreview() {
     if (image.getAttribute("src") === state.url) image.removeAttribute("src");
     revokePassiveObjectUrl(handle);
@@ -77,8 +79,10 @@ export function attachPassiveObjectUrlDownload(anchor: HTMLAnchorElement, handle
   if (!(anchor instanceof HTMLAnchorElement) || typeof filename !== "string" || !filename) {
     throw new TypeError("Expected an HTML anchor and a nonempty download filename");
   }
+  if (state.attached) throw new TypeError("Passive object URL already has an attachment");
   anchor.download = filename;
   anchor.href = state.url;
+  state.attached = true;
   return function detachDownload() {
     // Cleanup may run in an ancestor capture listener, before this anchor sees
     // its click. Preserve href until the default action, regardless of listener order.
@@ -108,7 +112,7 @@ export function PassiveObjectUrlPreview({blob, alt}: {blob: Blob; alt: string}) 
 export function PassiveObjectUrlDownload({blob, filename, children}: {blob: Blob; filename: string; children: ReactNode}) {
   const ref = useRef<HTMLAnchorElement>(null);
   useEffect(function mountDownload() {
-    const handle = createPassiveObjectUrl(blob);
+    const handle = createPassiveObjectUrl(blob, "download");
     try {
       return attachPassiveObjectUrlDownload(ref.current!, handle, filename);
     } catch (error) {

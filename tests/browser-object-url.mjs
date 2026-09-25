@@ -4,6 +4,7 @@ import {flushSync} from 'react-dom';
 import * as api from 'next-xss-sbyd/object-url';
 import {navigationUrl, resourceUrl} from 'next-xss-sbyd';
 window.api = api;
+window.reactVersion = React.version;
 window.observedUrls = [];
 const observer = new MutationObserver(records => {
   for (const record of records) {
@@ -19,16 +20,17 @@ window.rejects = function rejects(fn) {
 };
 window.contract = async function contract() {
   const {createPassiveObjectUrl: create, revokePassiveObjectUrl: revoke, attachPassiveObjectUrlPreview: preview, attachPassiveObjectUrlDownload: download} = api;
-  for (const type of ['', 'text/html', 'image/svg+xml', 'text/xml', 'application/javascript', 'text/css', 'application/pdf', 'application/octet-stream', 'text/plain', 'image/png; bad', 'image/png; a="', 'image/png; a=b;', 'image/png, image/jpeg']) window.rejects(() => create(new Blob(['x'], {type})));
-  for (const value of [null, {}, 'blob:foreign', new MediaSource()]) window.rejects(() => create(value));
+  for (const type of ['', 'text/html', 'image/svg+xml', 'text/xml', 'application/javascript', 'text/css', 'application/pdf', 'application/octet-stream', 'text/plain', 'image/png; bad', 'image/png; a="', 'image/png; a=b;', 'image/png, image/jpeg']) window.rejects(() => create(new Blob(['x'], {type}), 'download'));
+  for (const value of [null, {}, 'blob:foreign', new MediaSource()]) window.rejects(() => create(value, 'download'));
   window.rejects(() => create(new Blob(['x'], {type:'image/png'}), 'script'));
-  const handle = create(new Blob(['x'], {type:'IMAGE/PNG; charset="utf-8"'}));
+  window.rejects(() => create(new Blob(['x'], {type:'image/png'})));
+  const handle = create(new Blob(['x'], {type:'IMAGE/PNG; charset="utf-8"'}), 'download');
   if (handle.mediaType !== 'image/png' || handle.use !== 'download' || !Object.isFrozen(handle)) throw new Error('metadata');
   const anchor = document.createElement('a');
   for (const forged of [null, {}, handle.url, {...handle}, Object.create(handle), JSON.parse(JSON.stringify(handle)), URL.createObjectURL(new Blob(['x']))]) {
     window.rejects(() => download(anchor, forged, 'test.png'));
     window.rejects(() => revoke(forged));
-    if (typeof forged === 'string' && forged.startsWith('blob:')) URL.revokeObjectURL(forged);
+    if (typeof forged === 'string' && forged !== handle.url && forged.startsWith('blob:')) URL.revokeObjectURL(forged);
   }
   window.rejects(() => navigationUrl(handle.url));
   window.rejects(() => resourceUrl(handle.url));
@@ -36,6 +38,9 @@ window.contract = async function contract() {
   window.rejects(() => download(document.createElement('iframe'), handle, 'x'));
   for (const name of ['', null, 42]) window.rejects(() => download(anchor, handle, name));
   const detach = download(anchor, handle, 'x.png');
+  window.rejects(() => download(document.createElement('a'), handle, 'second.png'));
+  window.rejects(() => download(anchor, handle, 'second.png'));
+  if (await (await fetch(handle.url)).text() !== 'x') throw new Error('second attach broke owner');
   anchor.href = '/replacement'; detach(); detach();
   await new Promise(resolve => setTimeout(resolve, 0));
   if (anchor.getAttribute('href') !== '/replacement') throw new Error('overwrote replacement');
@@ -47,11 +52,14 @@ window.contract = async function contract() {
   window.rejects(() => preview(document.createElement('iframe'), raster));
   const img = document.createElement('img');
   const detachPreview = preview(img, raster);
+  window.rejects(() => preview(document.createElement('img'), raster));
+  window.rejects(() => preview(img, raster));
+  if (await (await fetch(raster.url)).text() !== 'x') throw new Error('second attach broke owner');
   img.src = '/replacement'; detachPreview(); detachPreview();
   if (img.getAttribute('src') !== '/replacement') throw new Error('overwrote replacement');
   revoke(raster);
   class LyingBlob extends Blob { get type() { return 'image/png'; } }
-  window.rejects(() => create(new LyingBlob(['<script>'], {type:'text/html'})));
+  window.rejects(() => create(new LyingBlob(['<script>'], {type:'text/html'}), 'download'));
 };
 let root;
 window.mount = function mount(bytes, type, mode, fail = false, filename = 'picture.png') {
