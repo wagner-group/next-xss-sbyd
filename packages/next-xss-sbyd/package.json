@@ -10,26 +10,6 @@
       "browser": "./dist/index-isomorphic.js",
       "default": "./dist/index.js"
     },
-    "./next-config": {
-      "types": "./dist/next-config.d.ts",
-      "default": "./dist/next-config.js"
-    },
-    "./jsx-runtime": {
-      "types": "./dist/jsx-runtime.d.ts",
-      "default": "./dist/jsx-runtime.js"
-    },
-    "./jsx-dev-runtime": {
-      "types": "./dist/jsx-dev-runtime.d.ts",
-      "default": "./dist/jsx-dev-runtime.js"
-    },
-    "./compat/link": {
-      "types": "./dist/compat-link.d.ts",
-      "default": "./dist/compat-link.js"
-    },
-    "./compat/image": {
-      "types": "./dist/compat-image.d.ts",
-      "default": "./dist/compat-image.js"
-    },
     "./compat/form": {
       "types": "./dist/compat-form.d.ts",
       "default": "./dist/compat-form.js"
@@ -38,31 +18,17 @@
       "types": "./dist/compat-html.d.ts",
       "default": "./dist/compat-html.js"
     },
-    "./restricted": {
-      "types": "./dist/restricted.d.ts",
-      "default": "./dist/restricted.js"
+    "./compat/image": {
+      "types": "./dist/compat-image.d.ts",
+      "default": "./dist/compat-image.js"
     },
-    "./sanitize": {
-      "types": "./dist/sanitize-node.d.ts",
-      "edge-light": "./dist/sanitize-unsupported.js",
-      "browser": "./dist/sanitize-browser.js",
-      "default": "./dist/sanitize-node.js"
-    },
-    "./sanitize-node": {
-      "types": "./dist/sanitize-node.d.ts",
-      "default": "./dist/sanitize-node.js"
-    },
-    "./render": {
-      "types": "./dist/render.d.ts",
-      "default": "./dist/render.js"
+    "./compat/link": {
+      "types": "./dist/compat-link.d.ts",
+      "default": "./dist/compat-link.js"
     },
     "./csp": {
       "types": "./dist/csp.d.ts",
       "default": "./dist/csp.js"
-    },
-    "./passive-content": {
-      "types": "./dist/passive-content.d.ts",
-      "default": "./dist/passive-content.js"
     },
     "./enforce": {
       "types": "./dist/enforce.d.ts",
@@ -72,13 +38,45 @@
       "types": "./dist/enforce-preload.d.ts",
       "default": "./dist/enforce-preload.js"
     },
-    "./route-handler": {
-      "types": "./dist/route-handler.d.ts",
-      "default": "./dist/route-handler.js"
+    "./jsx-dev-runtime": {
+      "types": "./dist/jsx-dev-runtime.d.ts",
+      "default": "./dist/jsx-dev-runtime.js"
+    },
+    "./jsx-runtime": {
+      "types": "./dist/jsx-runtime.d.ts",
+      "default": "./dist/jsx-runtime.js"
+    },
+    "./markdown": {
+      "types": "./dist/markdown.d.ts",
+      "default": "./dist/markdown.js"
+    },
+    "./next-config": {
+      "types": "./dist/next-config.d.ts",
+      "default": "./dist/next-config.js"
     },
     "./object-url": {
       "types": "./dist/object-url.d.ts",
       "default": "./dist/object-url.js"
+    },
+    "./passive-content": {
+      "types": "./dist/passive-content.d.ts",
+      "default": "./dist/passive-content.js"
+    },
+    "./playwright": {
+      "types": "./dist/playwright.d.ts",
+      "default": "./dist/playwright.js"
+    },
+    "./render": {
+      "types": "./dist/render.d.ts",
+      "default": "./dist/render.js"
+    },
+    "./restricted": {
+      "types": "./dist/restricted.d.ts",
+      "default": "./dist/restricted.js"
+    },
+    "./route-handler": {
+      "types": "./dist/route-handler.d.ts",
+      "default": "./dist/route-handler.js"
     },
     "./safe-html-iframe": {
       "react-server": {
@@ -90,13 +88,15 @@
       "browser": "./dist/safe-html-iframe.js",
       "default": "./dist/safe-html-iframe.js"
     },
-    "./playwright": {
-      "types": "./dist/playwright.d.ts",
-      "default": "./dist/playwright.js"
+    "./sanitize": {
+      "types": "./dist/sanitize-node.d.ts",
+      "edge-light": "./dist/sanitize-unsupported.js",
+      "browser": "./dist/sanitize-browser.js",
+      "default": "./dist/sanitize-node.js"
     },
-    "./markdown": {
-      "types": "./dist/markdown.d.ts",
-      "default": "./dist/markdown.js"
+    "./sanitize-node": {
+      "types": "./dist/sanitize-node.d.ts",
+      "default": "./dist/sanitize-node.js"
     }
   },
   "types": "./dist/index.d.ts",
@@ -117,28 +117,28 @@
     "node": "^22.22.2 || ^24.15.0 || ^26.0.0"
   },
   "peerDependencies": {
+    "@playwright/test": ">=1.62.1 <2",
     "eslint": ">=9 <11",
     "next": ">=14 <17",
     "react": ">=18 <20",
     "react-dom": ">=18 <20",
-    "typescript": ">=5.0.0 <6.1.0",
-    "@playwright/test": ">=1.62.1 <2"
+    "typescript": ">=5.0.0 <6.1.0"
   },
   "peerDependenciesMeta": {
+    "@playwright/test": {
+      "optional": true
+    },
     "eslint": {
       "optional": true
     },
     "typescript": {
       "optional": true
-    },
-    "@playwright/test": {
-      "optional": true
     }
   },
   "devDependencies": {
     "@playwright/test": "1.62.1",
-    "@types/node": "^26.6.2",
     "@types/jsdom": "^30.0.0",
+    "@types/node": "^26.6.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.2.7",
     "next": "16.3.4",

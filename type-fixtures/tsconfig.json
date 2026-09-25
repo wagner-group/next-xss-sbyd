@@ -9,5 +9,5 @@
     "target": "ES2022",
     "noEmit": true
   },
-  "include": ["pass.ts", "pass-jsx.tsx", "pass-playwright.ts", "object-url.tsx"]
+  "include": ["*.ts", "*.tsx"]
 }

@@ -9,25 +9,28 @@
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
-    "check": "npm run test:toolchain && npm run test:react && npm run typecheck && npm run test:runtime && npm run test:eslint && npm run test:types && npm run test:duplicate && npm run test:compat && npm run test:sanitize-browser && npm run test:object-url-browser && npm run test:frame-browser && npm run test:markdown-browser && npm run test:jsx-redirection",
+    "check": "npm run check:manifests && npm run test:toolchain && npm run test:react && npm run typecheck && npm run test:runtime && npm run test:eslint && npm run test:types && npm run test:duplicate && npm run test:compat && npm run test:sanitize-browser && npm run test:object-url-browser && npm run test:frame-browser && npm run test:markdown-browser && npm run test:jsx-redirection",
+    "check:manifests": "node scripts/sort-package-manifests.mjs --check",
+    "format:manifests": "node scripts/sort-package-manifests.mjs",
     "test:compat": "npm run build && node scripts/test-compatibility.mjs",
     "test:duplicate": "node scripts/test-duplicate-safevalues.mjs",
-    "test:runtime": "npm run build && node --test tests/*.test.mjs",
     "test:eslint": "npm run build --workspace eslint-plugin-next-xss-sbyd && node --test eslint-plugin-next-xss-sbyd/tests/*.test.mjs",
-    "test:types": "node scripts/test-type-fixtures.mjs",
-    "typecheck": "tsc -b",
+    "test:frame-browser": "npm run build && node scripts/test-sanitized-frame-browser.mjs",
+    "test:jsx-redirection": "npm run build && node --test tests/jsx-redirection.test.mjs && node scripts/test-jsx-redirection-next.mjs",
+    "test:markdown-browser": "npm run build && node scripts/test-markdown-browser.mjs",
+    "test:object-url-browser": "npm run build && node scripts/test-object-url-browser.mjs && node scripts/test-object-url-lifecycle.mjs",
     "test:passive-browser": "npm run build && node scripts/test-passive-content-browser.mjs",
+    "test:playwright": "npm run build && node scripts/test-playwright-csp.mjs",
+    "test:playwright-next": "npm run build && node scripts/test-playwright-next.mjs",
+    "test:react": "node --test scripts/test-react-compatibility.mjs",
+    "test:runtime": "npm run build && node --test tests/*.test.mjs",
     "test:sanitize-browser": "npm run build && node scripts/test-sanitize-browser.mjs",
     "test:toolchain": "node --test scripts/test-toolchain.mjs",
-    "test:react": "node --test scripts/test-react-compatibility.mjs",
-    "test:object-url-browser": "npm run build && node scripts/test-object-url-browser.mjs && node scripts/test-object-url-lifecycle.mjs",
-    "test:frame-browser": "npm run build && node scripts/test-sanitized-frame-browser.mjs",
-    "test:markdown-browser": "npm run build && node scripts/test-markdown-browser.mjs",
-    "test:jsx-redirection": "npm run build && node --test tests/jsx-redirection.test.mjs && node scripts/test-jsx-redirection-next.mjs",
-    "test:playwright": "npm run build && node scripts/test-playwright-csp.mjs",
-    "test:playwright-next": "npm run build && node scripts/test-playwright-next.mjs"
+    "test:types": "node scripts/test-type-fixtures.mjs",
+    "typecheck": "tsc -b"
   },
   "devDependencies": {
+    "@playwright/test": "1.62.1",
     "@types/node": "^26.6.2",
     "@typescript-eslint/parser": "8.70.0",
     "compression": "1.8.2",
@@ -35,10 +38,9 @@
     "eslint": "10.10.0",
     "eslint9": "npm:eslint@9.39.5",
     "playwright-core": "1.62.1",
-    "typescript": "~6.0.3",
-    "semver": "^7.8.5",
     "react-markdown": "10.1.0",
-    "@playwright/test": "1.62.1"
+    "semver": "^7.8.5",
+    "typescript": "~6.0.3"
   },
   "engines": {
     "node": "^22.22.2 || ^24.15.0 || ^26.0.0"
