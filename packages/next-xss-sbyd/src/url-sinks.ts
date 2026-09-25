@@ -1,4 +1,4 @@
-import type {TrustedResourceUrl} from "safevalues";
+import type {TrustedScriptUrl} from "./trusted-script-url.js";
 import {unwrapResourceUrl} from "./internal/unwrap.js";
 import {formActionUrl, navigationUrl, resourceUrl} from "./url.js";
 
@@ -85,7 +85,7 @@ function unwrapTrustedProps(props: Props, name: string): Props {
   for (const actualName of matchingPropNames(props, name)) {
     const value = props[actualName];
     if (value !== undefined && value !== null) {
-      props = withValue(props, actualName, unwrapResourceUrl(value as TrustedResourceUrl));
+      props = withValue(props, actualName, unwrapResourceUrl(value as TrustedScriptUrl));
     }
   }
   return props;

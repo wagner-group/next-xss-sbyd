@@ -2,7 +2,7 @@ import {AST_NODE_TYPES, type TSESTree} from "@typescript-eslint/utils";
 import ts from "typescript";
 import {createRule, isAnyType, requireTypeServices, typeAt, typeContainsSafeBrand} from "../utils.js";
 
-const SAFE_TYPES = ["SafeHtml", "SafeNavigationUrl", "SafeResourceUrl", "SafeFormActionUrl", "TrustedResourceUrl", "SafeScript", "SafeStyleSheet", "SafeStream", "SafeNodeStream", "CspNonce", "PassiveResponse"];
+const SAFE_TYPES = ["SafeHtml", "SafeNavigationUrl", "SafeResourceUrl", "SafeFormActionUrl", "TrustedScriptUrl", "SafeScript", "SafeStyleSheet", "SafeStream", "SafeNodeStream", "CspNonce", "PassiveResponse"];
 export default createRule({
   name: "no-unsafe-cast-to-safe-type",
   meta: {type: "problem", docs: {description: "Disallow casts and any values that bypass safe-value brands"}, schema: [], messages: {

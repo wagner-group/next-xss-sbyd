@@ -17,7 +17,7 @@ export default createRule({
   name: "safe-jsx-urls-active",
   meta: {type: "problem", docs: {description: "Require trusted URLs in active-content JSX sinks"}, schema: [], messages: {
     ...URL_RULE_MESSAGES,
-    active: "This active-content URL requires TrustedResourceUrl.",
+    active: "This active-content URL requires TrustedScriptUrl.",
     forbidden: "This URL sink is forbidden because it can rewrite document security behavior.",
     srcdoc: "An iframe srcdoc document requires SafeHtml.",
   }},
@@ -36,19 +36,19 @@ export default createRule({
           if (value?.toLowerCase() === "refresh") context.report({node, messageId: "forbidden"});
         }
         const activeAttribute = element === "script" || element === "next/script" || element === "iframe" || element === "frame" || element === "embed" ? "src" : element === "object" ? "data" : null;
-        if (activeAttribute) checkUrlAttribute(context, node, activeAttribute, ["TrustedResourceUrl"], "active", true, false, false);
+        if (activeAttribute) checkUrlAttribute(context, node, activeAttribute, ["TrustedScriptUrl"], "active", true, false, false);
         if (element === "iframe" || element === "frame") {
           checkSrcdoc(context, node, "srcDoc");
         }
         if (element === "link") {
           const rel = jsxAttribute(node, "rel");
           const relValue = rel ? staticString(jsxExpression(rel))?.toLowerCase() ?? null : "";
-          if (relValue === null || ["stylesheet", "preload", "modulepreload", "import"].includes(relValue)) checkUrlAttribute(context, node, "href", ["TrustedResourceUrl"], "active", true, false, false);
+          if (relValue === null || ["stylesheet", "preload", "modulepreload", "import"].includes(relValue)) checkUrlAttribute(context, node, "href", ["TrustedScriptUrl"], "active", true, false, false);
         }
         if (["use", "image", "feimage"].includes(element)) {
-          checkUrlAttribute(context, node, "href", ["TrustedResourceUrl"], "active", true, false, false);
-          checkUrlAttribute(context, node, "xlink:href", ["TrustedResourceUrl"], "active", true, false, false);
-          checkUrlAttribute(context, node, "xlinkHref", ["TrustedResourceUrl"], "active", true, false, false);
+          checkUrlAttribute(context, node, "href", ["TrustedScriptUrl"], "active", true, false, false);
+          checkUrlAttribute(context, node, "xlink:href", ["TrustedScriptUrl"], "active", true, false, false);
+          checkUrlAttribute(context, node, "xlinkHref", ["TrustedScriptUrl"], "active", true, false, false);
         }
       },
     };

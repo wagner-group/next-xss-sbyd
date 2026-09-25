@@ -1,6 +1,7 @@
+import type {TrustedScriptUrl} from "./trusted-script-url.js";
 import {createElement} from "react";
 import type {ComponentPropsWithoutRef, HTMLAttributes, ReactElement} from "react";
-import type {SafeHtml, SafeScript, SafeStyleSheet, TrustedResourceUrl} from "safevalues";
+import type {SafeHtml, SafeScript, SafeStyleSheet} from "safevalues";
 import {unwrapHtml, unwrapResourceUrl, unwrapScript, unwrapStyleSheet} from "./internal/unwrap.js";
 import type {CspNonce} from "./csp.js";
 
@@ -27,7 +28,7 @@ export interface SafeExternalIframeProps extends Omit<
   ComponentPropsWithoutRef<"iframe">,
   "dangerouslySetInnerHTML" | "sandbox" | "src" | "srcDoc"
 > {
-  readonly src: TrustedResourceUrl;
+  readonly src: TrustedScriptUrl;
   readonly sandbox: SafeExternalIframeSandbox;
 }
 

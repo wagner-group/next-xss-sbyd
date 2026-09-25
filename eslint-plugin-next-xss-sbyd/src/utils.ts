@@ -239,7 +239,7 @@ const SAFE_BRAND_MARKERS: Readonly<Record<string, string>> = {
   SafeScript: "privateDoNotAccessOrElseWrappedScript",
   SafeStream: "safeStreamBrand",
   SafeStyleSheet: "privateDoNotAccessOrElseWrappedStyleSheet",
-  TrustedResourceUrl: "privateDoNotAccessOrElseWrappedResourceUrl",
+  TrustedScriptUrl: "privateDoNotAccessOrElseWrappedResourceUrl",
 };
 
 const safePackageSources = new WeakMap<ts.SourceFile, boolean>();

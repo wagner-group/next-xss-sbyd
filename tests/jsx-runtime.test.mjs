@@ -4,7 +4,7 @@ import test from "node:test";
 
 import {createElement as reactCreateElement} from "react";
 import {renderToStaticMarkup} from "react-dom/server";
-import {createElement, htmlEscape, SafeAnchor, SafeLink, trustedResourceUrl} from "next-xss-sbyd";
+import {createElement, htmlEscape, SafeAnchor, SafeLink, trustedScriptUrl} from "next-xss-sbyd";
 import {jsx, jsxs} from "next-xss-sbyd/jsx-runtime";
 import {jsxDEV} from "next-xss-sbyd/jsx-dev-runtime";
 import Form from "next-xss-sbyd/compat/form";
@@ -47,8 +47,8 @@ test("passive URL sinks fail closed for direct props and resolved spreads", () =
   ]) assert.throws(() => jsx(type, props), /Invalid .* URL|Invalid srcSet/u);
 });
 
-test("active-content sinks unwrap only authentic TrustedResourceUrl values", () => {
-  const trusted = trustedResourceUrl`https://cdn.example.test/app.js`;
+test("active-content sinks unwrap only authentic TrustedScriptUrl values", () => {
+  const trusted = trustedScriptUrl`https://cdn.example.test/app.js`;
   assert.equal(renderToStaticMarkup(jsx("script", {src: trusted})), '<script src="https://cdn.example.test/app.js"></script>');
   assert.equal(renderToStaticMarkup(jsx("iframe", {src: trusted})), '<iframe src="https://cdn.example.test/app.js"></iframe>');
   assert.equal(renderToStaticMarkup(jsx("link", {rel: "stylesheet", href: trusted})), '<link rel="stylesheet" href="https://cdn.example.test/app.js"/>');
@@ -59,7 +59,7 @@ test("active-content sinks unwrap only authentic TrustedResourceUrl values", () 
     ["object", {data: "/movie.swf"}],
     ["link", {rel: "stylesheet", href: "/app.css"}],
     ["use", {href: "/icons.svg#menu"}],
-  ]) assert.throws(() => jsx(type, props), /TrustedResourceUrl/u);
+  ]) assert.throws(() => jsx(type, props), /TrustedScriptUrl/u);
 });
 
 test("the JSX runtime forbids document-security rewrites", () => {
@@ -123,7 +123,7 @@ test("root createElement applies the same validation and preserves children", ()
 
 test("the development JSX runtime applies the same validation", () => {
   assert.equal(renderToStaticMarkup(jsxDEV("a", {href: "/one/../two", children: "two"}, undefined, false)), '<a href="/two">two</a>');
-  assert.throws(() => jsxDEV("script", {src: "/app.js"}, undefined, false), /TrustedResourceUrl/u);
+  assert.throws(() => jsxDEV("script", {src: "/app.js"}, undefined, false), /TrustedScriptUrl/u);
 });
 
 test("every JSX factory rejects unauthenticated raw-HTML props", () => {
@@ -244,7 +244,7 @@ test("intrinsic matching is case-insensitive and malformed srcSet values fail cl
   assert.equal(jsx("a", {HREF: "/one/../two"}).props.HREF, "/two");
   assert.throws(() => jsx("base", {HREF: "/rewritten/"}), /forbidden.*base/u);
   assert.throws(() => jsx("iframe", {srcdoc: "<script>alert(1)</script>"}), /SafeHtml/u);
-  assert.throws(() => jsx("script", {SRC: "/app.js"}), /TrustedResourceUrl/u);
+  assert.throws(() => jsx("script", {SRC: "/app.js"}), /TrustedScriptUrl/u);
   for (const srcSet of ["", "/a.png 0w", "/a.png 1.5w", "/a.png 1x 2x", "/a.png,"]) {
     assert.throws(() => jsx("img", {srcSet}), /Invalid srcSet/u);
   }
