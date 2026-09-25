@@ -6,7 +6,8 @@ response guard, which checks Web `Response` construction and Node
 `write`, `end`, and `writeHead` calls before output. Lint
 checks source code; these runtime checks inspect the values used by the application.
 All rules below are errors in
-`recommended` except `safe-jsx-urls-navigation`, which is not in preset.
+`recommended` except `safe-jsx-urls-navigation` and the two opt-in Markdown
+rules, which are not in that preset.
 `lintMigration` changes enabled rules to warnings except
 `require-disable-justification`, which stays an error; it does not relax runtime
 checks. See [configuration](README.md#configuration) for TypeScript project setup.
@@ -372,3 +373,68 @@ Options: `{excludedTags: ["reviewedHtml"]}` exempts only a bare identifier tag
 with the exact configured name. Member tags such as `tags.reviewedHtml` are not
 exempt. Matching is by name, so review every binding before adding an exclusion.
 This option only skips the heuristic; it does not produce `SafeHtml` or relax any sink.
+
+## require-safe-markdown
+
+Opt-in: `configs.markdown` enables errors; `configs.markdownMigration` enables
+warnings. Add one after the corresponding base preset. Reports direct value
+imports/re-exports of `react-markdown`, `markdown-to-jsx`, `rehype-react`,
+`react-remark`, and `marked-react`, including subpaths.
+Use `SafeMarkdown` from `next-xss-sbyd/markdown` for ordinary content, or review a
+narrow adapter when a different rendering policy is necessary. A default
+`react-markdown` integration may already be safe; this rule enforces the project's
+chosen rendering boundary, rather than claiming every direct import is vulnerable.
+
+Aliases, namespace imports, named re-exports, export-all, CommonJS `require`,
+TypeScript import-equals, and literal dynamic imports are checked at the module
+boundary. Type-only and side-effect-only imports (`import "react-markdown"`)
+are excluded: they do not bind a renderer or execution API. A locally defined `require` is not
+mistaken for the CommonJS loader. Import findings remain even if a caller later
+shadows the imported renderer; the import itself crosses the boundary. Nonliteral
+`import()` and unshadowed `require()` receive one warning from
+`markdown-loader-coverage`, even in the strict preset. Arbitrary
+wrapper implementations and indirect loader aliases need manual review.
+
+HTML parsers such as `marked`, `markdown-it`, and unified remain allowed. Finish
+all HTML transformations before `sanitizeUserHtml`, then pass its `SafeHtml` to
+`SafeBlock`. Existing HTML sink and unsafe-cast rules still apply. There is no
+autofix that removes plugins, changes options, or changes rendering semantics.
+
+Preserve reviewed adapters in a specific file, with scoped justified disables
+that identify the owner and relevant tests. `check-config` rejects disabled
+optional rules when Markdown enforcement is selected; scoped inline exceptions
+remain visible in `audit`. See the [Markdown guide](../docs/markdown.md) for
+migration and compatibility limits.
+
+## no-unreviewed-mdx-execution
+
+Enabled by the same opt-in Markdown presets. Reports `createProcessor`, `compile`, `compileSync`,
+`evaluate`, `evaluateSync`, `run`, and `runSync` imports from `@mdx-js/mdx`, plus
+namespace/default loads, internal subpaths, `next-mdx-remote`,
+`next-mdx-remote-client`, and `mdx-bundler` entry points. The import forms and dynamic-loading limitations described above
+apply. These APIs compile or execute application code; an authenticated CMS,
+literal source string, or same-origin fetch alone does not establish code trust.
+
+`@next/mdx` is excluded: the Next configuration plugin compiles repository MDX
+at build time rather than accepting runtime source strings. Those documents and
+build plugins must still be trusted application code; this exclusion does not
+authorize compiling untrusted CMS or user content during a build.
+
+Keep MDX integration in a narrowly reviewed file with an owner, justification,
+source-authorization policy, and execution tests. Use ordinary Markdown for
+untrusted content. Sanitizing rendered HTML cannot undo JavaScript execution on
+the server, and CSP must not be relaxed automatically to enable evaluation.
+
+The Markdown inventory discovers `.md` and `.mdx` files separately from JS/TS
+lint coverage. Finding a document does not analyze its executable contents or
+establish that every consumer has been found.
+
+## markdown-loader-coverage
+
+Enabled at warning severity in both `configs.markdown` and
+`configs.markdownMigration`. Reports one coverage limitation for a nonliteral
+`import()` or unshadowed `require()` whose target cannot be determined statically.
+The two boundary rules report only known imports, avoiding duplicate diagnostics.
+Ordinary variable loaders, including localized JSON imports, are not proof of a
+Markdown violation. Review their possible targets; arbitrary loader aliases and
+wrapper implementations still need manual review. No autofix is provided.

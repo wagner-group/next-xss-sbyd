@@ -8,6 +8,9 @@ This guide applies to TypeScript applications using Next.js 14–16 and React 18
 It covers server-rendered HTML, URL attributes, inline code, HTML responses, custom
 rendering, middleware/proxy CSP, and sanitized browser HTML display.
 
+For Markdown rendering sites, follow the [Markdown/MDX migration guide](markdown.md)
+for `SafeMarkdown`, existing HTML parsers, the optional lint preset and fidelity checks.
+
 ## 1. Install and inventory
 
 Ordinary React style props and dependency-generated attributes are allowed by the

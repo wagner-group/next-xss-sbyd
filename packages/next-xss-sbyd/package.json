@@ -85,6 +85,10 @@
       "edge-light": "./dist/safe-html-iframe.js",
       "browser": "./dist/safe-html-iframe.js",
       "default": "./dist/safe-html-iframe.js"
+    },
+    "./markdown": {
+      "types": "./dist/markdown.d.ts",
+      "default": "./dist/markdown.js"
     }
   },
   "types": "./dist/index.d.ts",
@@ -131,8 +135,13 @@
   "dependencies": {
     "@braintree/sanitize-url": "^7.1.2",
     "dompurify": "^3.4.15",
+    "hast-util-to-jsx-runtime": "^2.3.6",
     "jsdom": "^30.1.1",
     "parse5": "^8.0.1",
-    "safevalues": "^1.2.0"
+    "rehype-sanitize": "^6.0.0",
+    "remark-parse": "^11.0.0",
+    "remark-rehype": "^11.1.2",
+    "safevalues": "^1.2.0",
+    "unified": "^11.0.5"
   }
 }
