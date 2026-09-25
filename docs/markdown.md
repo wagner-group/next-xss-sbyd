@@ -34,10 +34,10 @@ are integers from 0 through 999,999,999. No content-supplied IDs, names, classes
 forms, frames, SVG or MathML survive. Code-language highlighting classes are removed.
 The component returns content without an extra layout element.
 
-Parsed link destinations pass through `navigationUrlOrNull`; images use
-`resourceUrlOrNull`. This is the same URL policy as the HTML sanitizer. Links allow
-HTTP(S), root-relative paths and supported `mailto:`/`tel:` forms; images allow
-HTTP(S) and root-relative paths. Script, data, blob and protocol-relative URLs,
+Parsed link and image destinations pass through `validateUrlOrNull`, sharing
+the URL policy used by JSX and the HTML sanitizer. Both allow HTTP(S),
+root-relative paths and supported `mailto:`/`tel:` forms. Accepting a URL does
+not guarantee that a browser can load it as an image. Script, data, blob and protocol-relative URLs,
 credentials, forbidden control characters and backslashes are rejected. Bare
 fragments and document-relative destinations such as `#heading`, `./page` and
 `image.png` are also rejected. Invalid links retain their children without navigation;
