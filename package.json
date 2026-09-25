@@ -9,7 +9,7 @@
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
-    "check": "npm run typecheck && npm run test:runtime && npm run test:eslint && npm run test:types && npm run test:duplicate && npm run test:compat && npm run test:sanitize-browser",
+    "check": "npm run test:toolchain && npm run test:react && npm run typecheck && npm run test:runtime && npm run test:eslint && npm run test:types && npm run test:duplicate && npm run test:compat && npm run test:sanitize-browser",
     "test:compat": "npm run build && node scripts/test-compatibility.mjs",
     "test:duplicate": "node scripts/test-duplicate-safevalues.mjs",
     "test:runtime": "npm run build && node --test tests/*.test.mjs",
@@ -17,7 +17,9 @@
     "test:types": "node scripts/test-type-fixtures.mjs",
     "typecheck": "tsc -b",
     "test:passive-browser": "npm run build && node scripts/test-passive-content-browser.mjs",
-    "test:sanitize-browser": "npm run build && node scripts/test-sanitize-browser.mjs"
+    "test:sanitize-browser": "npm run build && node scripts/test-sanitize-browser.mjs",
+    "test:toolchain": "node --test scripts/test-toolchain.mjs",
+    "test:react": "node --test scripts/test-react-compatibility.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.4.1",
@@ -27,7 +29,8 @@
     "eslint": "10.10.0",
     "eslint9": "npm:eslint@9.39.5",
     "playwright-core": "1.62.1",
-    "typescript": "^7.0.2"
+    "typescript": "~6.0.3",
+    "semver": "^7.8.5"
   },
   "engines": {
     "node": "^22.13.0 || ^24.0.0 || ^26.0.0"

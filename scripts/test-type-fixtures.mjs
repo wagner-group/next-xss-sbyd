@@ -13,6 +13,7 @@ if (passing.status !== 0) {
 
 const failing = run([
   tsc,
+  "--ignoreConfig",
   "--noEmit",
   "--strict",
   "--target", "ES2022",
