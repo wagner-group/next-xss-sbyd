@@ -219,13 +219,13 @@ needs to validate a URL before rendering it. Their return types record which che
 the URL passed: navigation, resource loading, or form submission. These values remain
 strings without runtime identity markers, so the JSX runtime validates them again.
 
-Use `SafeIframe` instead of an intrinsic iframe. React's intrinsic `src` type accepts
+Use `SafeExternalIframe` instead of an intrinsic iframe. React's intrinsic `src` type accepts
 only strings and cannot express the required safe value:
 
 ```tsx
-import {SafeIframe, trustedResourceUrl} from "next-xss-sbyd";
+import {SafeExternalIframe, trustedResourceUrl} from "next-xss-sbyd";
 
-<SafeIframe
+<SafeExternalIframe
   src={trustedResourceUrl`https://video.example/embed/player`}
   sandbox="allow-scripts"
   title="Product video"
@@ -416,7 +416,7 @@ export const config = {
 };
 ```
 
-If the application uses the `SafeIframe` example above, pass its exact origin through
+If the application uses the `SafeExternalIframe` example above, pass its exact origin through
 `frameSrc`, for example:
 
 ```ts

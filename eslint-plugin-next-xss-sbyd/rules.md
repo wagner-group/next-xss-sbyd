@@ -191,7 +191,7 @@ React's native `script.src` type accepts a string, so the constructed object can
 be passed directly to that prop. Do not cast it to a string to bypass the mismatch.
 
 Select developer-controlled resources; do not cast an attacker-controlled URL into
-a trusted type. Review embedded content; use `SafeIframe` with a `TrustedResourceUrl` and an
+a trusted type. Review embedded content; use `SafeExternalIframe` with a `TrustedResourceUrl` and an
 explicit sandbox of `""` or `"allow-scripts"`. See [URL guidance](../docs/newcode.md#urls-automatic-validation-for-passive-sinks)
 for the distinction between ordinary navigation and active content.
 

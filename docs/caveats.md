@@ -71,7 +71,7 @@ markup.
 ### Active sinks without direct TypeScript JSX support
 
 React types active intrinsic URL props as strings, which cannot carry a
-`TrustedResourceUrl` directly. `SafeIframe` is the supported iframe adapter and also
+`TrustedResourceUrl` directly. `SafeExternalIframe` is the supported iframe adapter and also
 requires a fixed hardened sandbox. Other active sinks remain deliberately narrower:
 
 - Prefer bundled scripts. `SafeScriptBlock` covers only reviewed
@@ -88,7 +88,7 @@ cast hides the type mismatch and defeats the lint rule's ability to verify the v
 
 ### Native PDF viewing
 
-`SafeIframe`'s sandbox profiles are intended for HTML documents. Chrome can show a
+`SafeExternalIframe`'s sandbox profiles are intended for HTML documents. Chrome can show a
 broken-document frame for native PDFs under either `sandbox=""` or
 `sandbox="allow-scripts"`, without a console or page error. HTTP 200, an
 `application/pdf` response, and the presence of an iframe do not prove that the PDF
@@ -112,15 +112,15 @@ not validate response bytes.
 The JSX runtime validates this navigation URL; it does not need a
 `TrustedResourceUrl`. The endpoint must still meet the response requirements above.
 
-Keep `SafeIframe`'s HTML policy unchanged. Do not add `allow-same-origin` to work
+Keep `SafeExternalIframe`'s HTML policy unchanged. Do not add `allow-same-origin` to work
 around PDF failures, or use `embed`/`object`, which conflict with `object-src 'none'`.
 If inline PDFs are required, treat the integration as a separately reviewed
 application requirement; this package provides no PDF component or general inline
-PDF recipe. An iframe without a sandbox loses `SafeIframe`'s protection across
+PDF recipe. An iframe without a sandbox loses `SafeExternalIframe`'s protection across
 arbitrary frame navigations.
 
 The [native PDF browser fixture](../scripts/test-native-pdf.mjs) checks an unsandboxed
-one-page viewer control and both supported `SafeIframe` sandbox profiles. These
+one-page viewer control and both supported `SafeExternalIframe` sandbox profiles. These
 browser diagnostics document the current limitation, not an inline-PDF recipe.
 
 ## Third-party components and dependencies

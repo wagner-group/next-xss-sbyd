@@ -24,6 +24,7 @@ export type {
 export {
   readJsonScript,
   SafeBlock,
+  SafeExternalIframe,
   SafeIframe,
   SafeJsonLdScript,
   SafeJsonScript,
@@ -35,6 +36,8 @@ export type {
   JsonPrimitive,
   JsonValue,
   SafeBlockProps,
+  SafeExternalIframeProps,
+  SafeExternalIframeSandbox,
   SafeIframeProps,
   SafeIframeSandbox,
   SafeJsonLdScriptProps,
