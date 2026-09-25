@@ -12,7 +12,8 @@ background as necessary to make it easy to understand.
 
 Avoid AI slop. Avoid jargon that tends to be overused by
 LLMs, e.g., load-bearing, gate, seam, boundary, topology,
-shape. Avoid the "X not Y" pattern. Avoid vague exciting-sounding
+shape, surface, land, backstop, genuine, honest, sharpens.
+Avoid the "X not Y" pattern. Avoid vague exciting-sounding
 generalities; be concrete. Avoid vapid marketing speak.
 
 Avoid super-terse/compressed language that will be hard for a human
