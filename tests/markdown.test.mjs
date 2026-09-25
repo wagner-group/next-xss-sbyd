@@ -54,8 +54,6 @@ test('SafeMarkdown validates parsed passive URLs and preserves useful fallback t
     ['/a/../image.png', '/image.png'],
     ['https://Example.COM:443/image.png', 'https://example.com/image.png'],
     ['http://example.com/image.png', 'http://example.com/image.png'],
-    ['mailto:a@example.com', 'mailto:a@example.com'],
-    ['tel:+123', 'tel:+123'],
   ]) {
     const accepted = documentFor(`[link](${url}) ![image](${url})`);
     assert.equal(accepted.querySelector('a').getAttribute('href'), expected, url);
@@ -65,6 +63,15 @@ test('SafeMarkdown validates parsed passive URLs and preserves useful fallback t
     const rejected = documentFor(`[link](${url}) ![fallback](${url})`);
     assert.equal(rejected.querySelector('a, img'), null, url);
     assert.match(rejected.body.textContent, /link.*fallback/, url);
+  }
+});
+
+test('SafeMarkdown keeps contact links but renders contact images as fallback text without preloads', () => {
+  for (const url of ['mailto:a@example.com', 'tel:+123']) {
+    const document = documentFor(`[contact](${url}) ![fallback](${url})`);
+    assert.equal(document.querySelector('a').getAttribute('href'), url, url);
+    assert.equal(document.querySelector('img, link[rel="preload"]'), null, url);
+    assert.match(document.body.textContent, /contact.*fallback/, url);
   }
 });
 

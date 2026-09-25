@@ -63,6 +63,8 @@ The `next-xss-sbyd` extension provides:
 - `htmlEscape()` for escaping input so its markup displays as text.
 - `validateUrl()` to validate and canonicalize passive URLs as ordinary strings,
   and `validateUrlOrNull()` for optional values that should disappear when invalid.
+  Successful validation returns the canonical form, not necessarily the input
+  (for example, `HTTPS://Example.COM:443/a` becomes `https://example.com/a`).
   Navigation, image/media URLs, and form targets share one policy: root-relative,
   HTTP(S), and validated `mailto:`/`tel:` URLs. CSP `form-action` independently
   restricts where forms may submit.

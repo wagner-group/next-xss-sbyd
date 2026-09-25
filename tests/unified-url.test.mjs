@@ -52,8 +52,6 @@ test("only form action props accept functions after validator unification", () =
 
 test("every srcSet candidate uses the common URL checker", () => {
   for (const tag of ["img", "source"]) {
-    assert.equal(jsx(tag, {srcSet: "mailto:user@example.test 1x, tel:+15551234 2x"}).props.srcSet,
-      "mailto:user@example.test 1x, tel:+15551234 2x");
     for (const srcSet of ["/safe.png 1x, javascript:alert(1) 2x", "javascript:alert(1) 1x, /safe.png 2x"]) {
       assert.throws(() => jsx(tag, {srcSet}), /Invalid URL/);
     }

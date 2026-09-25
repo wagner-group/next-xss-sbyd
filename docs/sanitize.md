@@ -96,7 +96,6 @@ including `aria-label="Warning: hot"`, `title="Warning: hot"`, and colon-contain
 The shared pipeline validates decoded attributes after HTML parsing with
 `validateUrlOrNull()` for both links and resources, writing its canonical output.
 Both allow HTTP(S), root-relative paths, and supported `mailto:`/`tel:` forms.
-Passing URL validation does not mean an image or media URL will load successfully.
 Invalid attributes disappear, with the
 source-element exception above. Script URLs, credentials, forbidden whitespace/control
 characters, backslashes, protocol-relative URLs, and all `data:`/`blob:` URLs are

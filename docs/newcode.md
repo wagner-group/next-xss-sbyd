@@ -261,8 +261,8 @@ const search = withQuery("/search", {q: queryValue(searchText)});
 
 Use `validateUrlOrNull` when an invalid optional URL should remove a link or
 resource. Use `validateUrl` to validate a URL early and throw on invalid input.
-Both return ordinary strings when validation succeeds; passive URL brands are
-no longer part of the API. The JSX runtime checks the URL again at the sink.
+Both return ordinary strings when validation succeeds. The JSX runtime checks
+the URL again at the sink.
 
 `PathSegment` and `QueryValue` still record encoded dynamic pieces. `relativePath`
 and `relativeResourcePath` return ordinary strings. `withQuery` accepts an ordinary

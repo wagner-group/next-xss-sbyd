@@ -80,7 +80,7 @@ export function validateUrl(value: string): string {
   return result;
 }
 
-/** Returns a canonical URL, or `null` when URL validation fails. */
+/** Returns a canonical URL, or `null` for invalid URL strings; caller type errors still throw. */
 export function validateUrlOrNull(value: string): string | null {
   try {
     return validateUrl(value);

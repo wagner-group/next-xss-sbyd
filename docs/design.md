@@ -152,16 +152,14 @@ submission targets share one validator; they have no separate URL brands.
 | --- | --- | --- |
 | `validateUrl(value: string): string` | root-relative, HTTP(S), validated `mailto:`/`tel:` | anchor, `Link`, image/media, form action |
 | `validateUrlOrNull(value: string): string \| null` | identical policy; returns `null` for invalid input | optional passive URL |
-| `TrustedScriptUrl` | resource controlled by the developer | script, iframe |
+| `TrustedScriptUrl` (created by `trustedScriptUrl`) | resource controlled by the developer | script, iframe |
 
 `validateUrl` canonicalizes accepted URLs and throws on invalid input. It rejects
 controls, whitespace, backslashes, credentials, protocol-relative references
 beginning with `//`, `data:`, `blob:`, and schemes outside its allowlist.
 `validateUrlOrNull` applies the same validation and canonicalization but returns
 `null` instead of throwing. These checks prevent executable URL schemes; they do
-not establish that a destination is trustworthy or meaningful for a particular
-HTML element. For example, `mailto:` passes validation for an image but cannot
-supply image bytes.
+not establish that a destination is trustworthy.
 
 External HTTP(S) form targets pass URL validation. CSP `form-action` remains an
 independent destination restriction; the default policy allows only `'self'`.

@@ -11,7 +11,7 @@ export const markdownSchema: Options = {
     img: ["src", "alt", "title"],
     ol: ["start"],
   },
-  protocols: {href: ["http", "https", "mailto", "tel"], src: ["http", "https", "mailto", "tel"]},
+  protocols: {href: ["http", "https", "mailto", "tel"], src: ["http", "https"]},
   strip: ["script", "style", "iframe", "object", "svg", "math"],
   clobber: ["id", "name"],
 };

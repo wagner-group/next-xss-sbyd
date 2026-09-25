@@ -251,12 +251,12 @@ meaningful for every element or that its destination is trustworthy.
 
 Choose by what the browser does with the URL:
 
-| JSX sink                                        | Runtime policy                                   |
-| ----------------------------------------------- | ------------------------------------------------ |
-| `a[href]`, `area[href]`, `Link[href]`           | Shared passive URL validation          |
-| passive `src`, `srcSet`, `poster`, `Image[src]` | Shared passive URL validation        |
-| `form[action]`, `formAction`, `next/form`       | Shared passive URL validation |
-| `script[src]`, `iframe[src]`, executable links  | Require a `TrustedScriptUrl` object from this package           |
+| JSX sink                                        | Runtime policy                                        |
+| ----------------------------------------------- | ----------------------------------------------------- |
+| `a[href]`, `area[href]`, `Link[href]`           | Shared passive URL validation                         |
+| passive `src`, `srcSet`, `poster`, `Image[src]` | Shared passive URL validation                         |
+| `form[action]`, `formAction`, `next/form`       | Shared passive URL validation                         |
+| `script[src]`, `iframe[src]`, executable links  | Require a `TrustedScriptUrl` object from this package |
 
 ```tsx
 import Link from "next/link";
@@ -369,16 +369,10 @@ const search = withQuery("/search", {
 });
 ```
 
-Replace `navigationUrl`, `resourceUrl`, and `formActionUrl` calls with
-`validateUrl`; replace their nullable variants with `validateUrlOrNull`. Remove
-`SafeNavigationUrl`, `SafeResourceUrl`, and `SafeFormActionUrl` imports and use
-`string` for passive URLs. These old constructors and brands are removed, with no
-replacement passive URL brand.
-
 Use `validateUrlOrNull` when an invalid optional URL should remove a link or
 resource. Use `validateUrl` to validate a URL early and throw on invalid input.
-Both return ordinary strings when validation succeeds; passive URL brands are
-no longer part of the API. The JSX runtime checks the URL again at the sink.
+Both return ordinary strings when validation succeeds. The JSX runtime checks
+the URL again at the sink.
 
 `PathSegment` and `QueryValue` still record encoded dynamic pieces. `relativePath`
 and `relativeResourcePath` return ordinary strings. `withQuery` accepts an ordinary
