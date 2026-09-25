@@ -26,6 +26,8 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: npm
       - run: npm ci --strict-peer-deps --engine-strict
+      - name: Check package manifest ordering
+        run: npm run check:manifests
       - name: Check TypeScript and ESLint parser compatibility
         run: npm run test:toolchain
       - name: Check exact React and React DOM compatibility
