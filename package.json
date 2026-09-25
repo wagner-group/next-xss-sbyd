@@ -22,7 +22,7 @@
     "test:react": "node --test scripts/test-react-compatibility.mjs"
   },
   "devDependencies": {
-    "@types/node": "^26.4.1",
+    "@types/node": "^26.6.2",
     "@typescript-eslint/parser": "8.70.0",
     "compression": "1.8.2",
     "esbuild": "^0.28.2",
