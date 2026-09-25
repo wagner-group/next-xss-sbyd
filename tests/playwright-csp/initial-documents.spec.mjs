@@ -62,9 +62,13 @@ for (const mode of ["strict", "redirect", "not-found", "self-navigation"]) {
     }, `${server}/${mode}`);
     await expect.poll(() => context.pages().length).toBe(4);
     const popups = context.pages().filter((candidate) => candidate !== page);
-    for (const popup of popups) {
+    // A nonce assertion flushes the whole context. Finish all opening navigations
+    // before checking any popup, including the others' immediate self-navigation.
+    await Promise.all(popups.map(async (popup) => {
       if (mode === "self-navigation") await popup.waitForURL(`${server}/strict`);
       await popup.waitForLoadState();
+    }));
+    for (const popup of popups) {
       // Identical URLs with independent nonces must retain their own responses.
       await csp.assertNoncePolicy(popup, {scriptSelector: "#authorized"});
       await expect(popup.locator("html")).toHaveAttribute("data-ready", "yes");

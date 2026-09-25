@@ -113,6 +113,9 @@ export class CspCollector implements CspAssertions {
 
   private async associateResponse(frame: Frame, response: Response, request: NavigationEvidence | undefined): Promise<void> {
     try {
+      // A popup's commit can precede replacement of its initial blank observer.
+      // Keep this response until the committed document has initialized.
+      await frame.waitForLoadState("domcontentloaded", { timeout: this.timeoutMs });
       const token = await this.documentToken(frame);
       // Fail closed on a competing navigation. Never bind by URL (reloads share URLs).
       if (!request || this.requests.get(frame) !== request || response.request() !== request.request || request.knownDocuments.has(token)) return;
