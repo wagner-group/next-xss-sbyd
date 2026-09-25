@@ -3,6 +3,12 @@ on:
   pull_request:
   push:
     branches: [main]
+# Lockfiles and integrity hashes still control installs. Reuse cached tarballs
+# before contacting the registry, including npm ci launched by test scripts.
+env:
+  npm_config_prefer_offline: 'true'
+  npm_config_logs_dir: ${{ github.workspace }}/tmp/npm-logs
+
 jobs:
   contracts:
     name: type, ESLint, and package contracts-node${{ matrix.node }}
@@ -92,6 +98,12 @@ jobs:
             fixtures/${{ matrix.fixture }}/package-lock.json
       - run: npm ci
       - run: npm run test:compat -- ${{ matrix.fixture }} --mode=${{ matrix.mode }}
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: npm-compatibility-node${{ matrix.node }}-${{ matrix.fixture }}-${{ matrix.mode }}
+          path: tmp/npm-logs/
+          retention-days: 7
 
   jsx-redirection:
     name: JSX redirection-${{ matrix.fixture }}
@@ -107,10 +119,19 @@ jobs:
         with:
           node-version: 24
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            fixtures/${{ matrix.fixture }}/package-lock.json
       - run: npm ci
       - run: npm ci --prefix fixtures/${{ matrix.fixture }}
       - run: node node_modules/playwright-core/cli.js install --with-deps chromium
       - run: npm run test:jsx-redirection -- ${{ matrix.fixture }}
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: npm-jsx-redirection-${{ matrix.fixture }}
+          path: tmp/npm-logs/
+          retention-days: 7
 
   required:
     name: require all validation jobs
