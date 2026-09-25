@@ -193,20 +193,19 @@ export class CspCollector implements CspAssertions {
       })]);
     } finally { clearTimeout(timer); }
   }
-  private async checkpoint(deadline: number): Promise<string> {
-    const documents: string[] = [];
+  private async checkpoint(deadline: number): Promise<boolean> {
+    const navigating: Frame[] = [];
     await this.bounded(Promise.all(this.context.pages().flatMap(page => page.frames()).map(async frame => {
       try {
         const token = await this.documentToken(frame);
         const doc = this.documents.get(token);
         if (!doc || doc.frame !== frame) throw new Error("Missing ready acknowledgement");
-        documents.push(doc.id);
       } catch (error) {
         // A removed frame has no live document to acknowledge. A navigating frame
         // is checked again on the next pass, after its new context initializes.
         if (frame.isDetached() || frame.page().isClosed()) return;
         if (/Execution context was destroyed|Cannot find context with specified id|most likely because of a navigation/i.test(String(error))) {
-          documents.push(`navigating-${this.frameId(frame)}`);
+          navigating.push(frame);
           return;
         }
         // Do not expose arbitrary browser error text: it can contain page secrets.
@@ -215,7 +214,7 @@ export class CspCollector implements CspAssertions {
       }
     })), deadline);
     if (this.errors.length) throw new Error(this.errors.join("\n"));
-    return documents.sort().join(",");
+    return navigating.every(frame => frame.isDetached() || frame.page().isClosed());
   }
 
   /** Return immutable runner records without acknowledging any of them. */
@@ -229,12 +228,12 @@ export class CspCollector implements CspAssertions {
     let quietSince = Date.now();
     try {
       for (;;) {
-        const current = await this.checkpoint(deadline);
-        // Require event silence and fresh acknowledgements, not stable frame
-        // membership: widgets may continuously mount and remove clean frames.
-        if (current.includes("navigating-")) quietSince = Date.now();
+        const acknowledged = await this.checkpoint(deadline);
+        // Only CSP events restart event silence. Transient navigation prevents
+        // this pass from completing, but must not starve a later acknowledged
+        // pass when clean frames are continuously mounted and removed.
         quietSince = Math.max(quietSince, this.lastArrival);
-        if (Date.now() - quietSince >= this.quietMs) return;
+        if (acknowledged && Date.now() - quietSince >= this.quietMs) return;
         if (Date.now() >= deadline) throw new Error("CSP collection timed out");
         await new Promise(resolve => setTimeout(resolve, Math.min(20, this.quietMs, Math.max(1, deadline - Date.now()))));
       }

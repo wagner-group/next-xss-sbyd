@@ -25,18 +25,37 @@ test("PASS missing expectation can be caught without poisoning teardown", async 
   expect(csp.violations()).toEqual([]);
 });
 
-test("PASS iframe churn during observation and teardown", async ({page, csp, server}) => {
-  await page.goto(`${server}/strict`);
-  await page.evaluate(() => {
-    let previous;
-    setInterval(() => {
-      previous?.remove();
-      previous = document.createElement("iframe");
-      document.body.append(previous);
-    }, 30);
-  });
-  // Churn deliberately continues through automatic teardown.
-  for (let index = 0; index < 4; index++) await csp.flush();
+test.describe("iframe churn", () => {
+  // Require silence across many frame replacements, with the default collection
+  // deadline. Short collection deadlines belong in dedicated timeout tests.
+  test.use({cspObservation: {quietMs: 500, timeoutMs: 2_000}});
+  for (const violation of [false, true]) {
+    test(`${violation ? "FAIL" : "PASS"} iframe churn during observation and teardown${violation ? " retains violation" : ""}`, async ({page, csp, server}) => {
+      await page.goto(`${server}/strict`);
+      await page.evaluate(() => {
+        let previous;
+        setInterval(() => {
+          previous?.remove();
+          previous = document.createElement("iframe");
+          document.body.append(previous);
+        }, 30);
+      });
+      // Churn deliberately continues through automatic teardown.
+      for (let index = 0; index < 4; index++) await csp.flush();
+      if (violation) {
+        await page.locator("#attack").evaluate(button => {
+          button.setAttribute("onclick", "document.documentElement.dataset.attack='executed'");
+          button.click();
+        });
+        await csp.flush();
+        expect(csp.violations()).toHaveLength(1);
+        expect(csp.violations()[0]).toMatchObject({effectiveDirective: "script-src-attr", disposition: "enforce", blockedURI: "inline"});
+        await expect(page.locator("html")).not.toHaveAttribute("data-attack", "executed");
+      } else {
+        expect(csp.violations()).toEqual([]);
+      }
+    });
+  }
 });
 
 for (const scheme of ["data", "blob"]) {

@@ -44,7 +44,7 @@ function failurePattern(title, project) {
   if (title === "FAIL nested expectation") return /Nested or simultaneous CSP expectations are unsupported/;
   if (/^FAIL invalid expectation |^FAIL missing assertion callback$/.test(title)) return /CSP expectation requires exact directive, disposition, blocked URI, positive count, and two callbacks/;
   if (title === "FAIL context closed before observation teardown") return /observed context closed before collection completed/;
-  if (/^FAIL automatic |^FAIL initial document |^FAIL initial violations in frames |^FAIL initial violation in noopener |^FAIL retained through navigation |^FAIL earlier records |^FAIL later identical record |^FAIL sandboxed srcdoc |^FAIL blocked blob script |^PASS retry starts /.test(title)) {
+  if (/^FAIL iframe churn |^FAIL automatic |^FAIL initial document |^FAIL initial violations in frames |^FAIL initial violation in noopener |^FAIL retained through navigation |^FAIL earlier records |^FAIL later identical record |^FAIL sandboxed srcdoc |^FAIL blocked blob script |^PASS retry starts /.test(title)) {
     return /Unexpected CSP violations \[(chromium|firefox|webkit), project (chromium|firefox|webkit)\]: [1-9]\d*/;
   }
   throw new Error(`Missing precise failure expectation for ${title}`);
@@ -122,6 +122,12 @@ async function inspect(suite) {
             assert.equal(result.errors.length, 1, "Only CSP teardown must reject the sandboxed frame");
             assert.deepEqual(artifact.observationErrors, []);
             assert.equal(artifact.violations[0].documentURL, "about:");
+          }
+          if (/iframe churn/.test(spec.title)) {
+            assert.deepEqual(artifact.observationErrors, [], `${test.projectName}: ${spec.title}`);
+            assert.equal(artifact.violations.length, spec.title.startsWith("FAIL ") ? 1 : 0);
+            assert.deepEqual(artifact.expectedSequences, []);
+            if (spec.title.startsWith("FAIL ")) assert.equal(result.errors.length, 1, "Only the unaccepted violation may fail churn teardown");
           }
           if (/missing expectation can be caught/.test(spec.title)) assert.deepEqual(artifact.observationErrors, []);
           if (/missing initialization|continuous violations|setContent response/.test(spec.title)) assert.ok(artifact.observationErrors.length > 0);

@@ -159,14 +159,22 @@ const precreated = test.extend({
   context: async ({browser}, use) => { const context = await browser.newContext(); await context.newPage(); try { await use(context); } finally { await context.close(); } },
 });
 precreated("FAIL precreated context", async ({page}) => { await page.goto("about:blank"); });
-test("FAIL continuous violations bounded flush", async ({page, csp, server}) => {
-  await page.goto(`${server}/strict`);
-  const timer = await page.evaluate(() => setInterval(() => {
-    const button = document.createElement("button");
-    button.setAttribute("onclick", "document.documentElement.dataset.attack='yes'");
-    document.body.append(button); button.click(); button.remove();
-  }, 10));
-  try { await csp.flush(); } finally { await page.evaluate((id) => clearInterval(id), timer); }
+test.describe("continuous violation deadline", () => {
+  // Browser timers and event delivery can pause under load. A 40 ms quiet
+  // interval tests scheduler speed rather than a sustained violation stream.
+  test.use({cspObservation: {quietMs: 500, timeoutMs: 2_000}});
+  test("FAIL continuous violations bounded flush", async ({page, csp, server}) => {
+    await page.goto(`${server}/strict`);
+    const timer = await page.evaluate(() => setInterval(() => {
+      const button = document.createElement("button");
+      button.setAttribute("onclick", "document.documentElement.dataset.attack='yes'");
+      document.body.append(button); button.click(); button.remove();
+    }, 10));
+    try {
+      await expect.poll(() => csp.violations().length).toBeGreaterThan(0);
+      await csp.flush();
+    } finally { await page.evaluate((id) => clearInterval(id), timer); }
+  });
 });
 test("FAIL expectation wrong frame", async ({page, context, csp, server}) => {
   await page.goto(`${server}/strict`);
