@@ -11,14 +11,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [22, 24, 26]
+        # Test declared minimum patches as well as current patches.
+        node: ['22.13.0', '24.0.0', '26.0.0', 22, 24, 26]
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node }}
           cache: npm
-      - run: npm ci --strict-peer-deps
+      - run: npm ci --strict-peer-deps --engine-strict
       - name: Check TypeScript and ESLint parser compatibility
         run: npm run test:toolchain
       - name: Check exact React and React DOM compatibility
