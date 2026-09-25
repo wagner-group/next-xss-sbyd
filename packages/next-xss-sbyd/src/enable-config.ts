@@ -229,7 +229,9 @@ export async function planEnable(
         file: project.nextConfig ?? "next.config.*",
         action: "manual",
         reason:
-          "Configure all next/link, next/image, and next/form aliases in both Turbopack and webpack.",
+          "Configure all next/link, next/image, and next/form aliases in both Turbopack and webpack. " +
+          "Wrap the Next config with withXssSbyd from next-xss-sbyd/next-config to redirect bundled React JSX runtime imports. " +
+          "Use webpack (Next 16: next dev --webpack and next build --webpack); Turbopack requires the explicit redirectJsxRuntime: false opt-out.",
       });
     diagnostics.push(...runtimeDiagnostics.filter((item) =>
       item.status === "error" && item.id !== "runtime.response-guard" && !item.id.startsWith("runtime.alias.") &&

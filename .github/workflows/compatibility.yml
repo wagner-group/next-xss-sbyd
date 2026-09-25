@@ -70,10 +70,29 @@ jobs:
       - run: npm ci
       - run: npm run test:compat -- ${{ matrix.fixture }} --mode=${{ matrix.mode }}
 
+  jsx-redirection:
+    name: JSX redirection-${{ matrix.fixture }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        fixture: [next14, next15, next16]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm ci --prefix fixtures/${{ matrix.fixture }}
+      - run: node node_modules/playwright-core/cli.js install --with-deps chromium
+      - run: npm run test:jsx-redirection -- ${{ matrix.fixture }}
+
   required:
     name: require all validation jobs
     if: always()
-    needs: [contracts, compatibility, sanitizer-browsers]
+    needs: [contracts, compatibility, sanitizer-browsers, jsx-redirection]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -81,8 +100,10 @@ jobs:
         env:
           CONTRACTS_RESULT: ${{ needs.contracts.result }}
           COMPATIBILITY_RESULT: ${{ needs.compatibility.result }}
+          JSX_RESULT: ${{ needs.jsx-redirection.result }}
           SANITIZER_RESULT: ${{ needs.sanitizer-browsers.result }}
         run: |
           test "$CONTRACTS_RESULT" = success
           test "$COMPATIBILITY_RESULT" = success
           test "$SANITIZER_RESULT" = success
+          test "$JSX_RESULT" = success

@@ -249,3 +249,17 @@ test("intrinsic matching is case-insensitive and malformed srcSet values fail cl
     assert.throws(() => jsx("img", {srcSet}), /Invalid srcSet/u);
   }
 });
+
+test("empty image sources from sanitized Markdown disappear without weakening other URL sinks", () => {
+  const props = Object.freeze({src: "", alt: "removed image"});
+  assert.equal(renderToStaticMarkup(jsx("img", props)), '<img alt="removed image"/>');
+  assert.equal(props.src, "", "The runtime must not mutate library-owned props when removing empty image sources");
+  assert.match(renderToStaticMarkup(jsx("img", {src: "/image.png", alt: "safe"})), /src="\/image.png"/);
+  for (const src of [" ", "javascript:alert(1)", "data:text/html,bad"]) {
+    assert.throws(() => renderToStaticMarkup(jsx("img", {src})), /URL/,
+      "Only the exact empty img src compatibility case may be removed; keep rejecting unsafe nonempty URLs");
+  }
+  assert.throws(() => renderToStaticMarkup(jsx("iframe", {src: ""})), /TrustedScriptUrl/,
+    "Do not extend Markdown's empty-image compatibility rule to active resource sinks");
+  assert.throws(() => renderToStaticMarkup(jsx("audio", {src: ""})), /URL/);
+});

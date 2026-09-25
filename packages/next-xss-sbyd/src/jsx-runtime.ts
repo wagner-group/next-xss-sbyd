@@ -22,3 +22,6 @@ export function jsxs(type: unknown, props: Props, key?: Key): ReactElement {
 
 export {Fragment};
 export type {JSX};
+
+// Match the default import provided by React's CommonJS runtime entry points.
+export default {Fragment, jsx, jsxs};

@@ -72,7 +72,13 @@ The `next-xss-sbyd` extension provides:
 Configure `"jsxImportSource": "next-xss-sbyd"` in `tsconfig.json` and redirect
 `next/link`, `next/image`, and `next/form` to the corresponding
 `next-xss-sbyd/compat/*` exports in both Turbopack and webpack. See the new-code and
-retrofit guides for complete configuration. Passive URL props on built-in elements
+retrofit guides for complete configuration. Wrap the Next.js configuration with
+`withXssSbyd` from `next-xss-sbyd/next-config` to also redirect bundled
+`react/jsx-runtime` and `react/jsx-dev-runtime` imports, including those in
+precompiled dependencies. Redirection is enabled by default in the wrapper and
+requires webpack (use `next dev --webpack` and `next build --webpack` on Next.js 16).
+It does not cover classic `createElement`, later `cloneElement` calls, external
+server packages, or direct DOM operations. Passive URL props on built-in elements
 and these Next.js components may then remain ordinary strings: the runtime validates them and always throws on invalid input. Active-content
 sinks still require a `TrustedScriptUrl` object created by this package. Raw
 `dangerously*` and `srcDoc` props on built-in elements require a `SafeHtml` object

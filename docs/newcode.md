@@ -47,6 +47,7 @@ these aliases in `next.config.ts`:
 
 ```ts
 import type {NextConfig} from "next";
+import {withXssSbyd} from "next-xss-sbyd/next-config";
 
 const aliases = {
   "next/link": "next-xss-sbyd/compat/link",
@@ -62,12 +63,34 @@ const config: NextConfig = {
   },
 };
 
-export default config;
+export default withXssSbyd(config);
 ```
 
-Keep both configurations so development and production remain protected if the app
-switches bundlers. These three modules use unaliased Next.js
-imports internally to avoid an alias loop.
+`withXssSbyd` preserves your webpack callback and enables JSX import redirection by
+default. It redirects bundled imports of `react/jsx-runtime` and
+`react/jsx-dev-runtime` to this package's checking runtime, including imports in
+precompiled dependencies. Next.js internals and this package's own runtime imports
+are excluded to avoid recursion and interfering with framework rendering.
+Keep `jsxImportSource` configured for application code as well. The wrapper adds
+`next-xss-sbyd` and `safevalues` to `transpilePackages` so CommonJS dependencies
+receive synchronous checking functions in Pages Router builds; it preserves your
+existing entries. It also separates webpack's persistent cache when redirection
+is enabled, so changing the opt-out setting does not reuse rewritten imports.
+
+Use webpack for both development and production. On Next.js 16, use
+`next dev --webpack` and `next build --webpack`; on Next.js 14/15, omit
+`--turbo`/`--turbopack`. Turbopack does not support this redirection: the wrapper
+throws when it detects Turbopack. To explicitly accept the reduced coverage, use
+`withXssSbyd(config, {redirectJsxRuntime: false})`. The component aliases above are
+still needed; keeping both alias configurations supports that opt-out. These three
+modules use unaliased Next.js imports internally to avoid an alias loop.
+
+Test dependencies with both ordinary and hostile input before deployment. Libraries
+that insert raw HTML or use unsupported URLs may now throw even when their input
+was previously accepted. Do not add a global unchecked-HTML exemption to restore
+compatibility. Redirection does not check `React.createElement`, props introduced
+later by `React.cloneElement`, server packages left external to the bundle, vendored
+runtimes, or direct DOM writes. See [the remaining limits](caveats.md#third-party-components-and-dependencies).
 
 <a id="configure-the-response-guard"></a>
 
@@ -101,7 +124,8 @@ Set the build and production start scripts in `package.json`:
 }
 ```
 
-These scripts use POSIX shell syntax. Preserve any existing build or start arguments.
+These scripts use POSIX shell syntax. On Next.js 16, append `--webpack` to the
+`next build` command. Preserve any existing build or start arguments.
 `next build` prerenders static pages and route handlers into files served later, so
 response validation must also run during the build.
 
