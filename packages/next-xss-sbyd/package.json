@@ -75,6 +75,16 @@
     "./object-url": {
       "types": "./dist/object-url.d.ts",
       "default": "./dist/object-url.js"
+    },
+    "./safe-html-iframe": {
+      "react-server": {
+        "types": "./dist/safe-html-iframe-server.d.ts",
+        "default": "./dist/safe-html-iframe-server.js"
+      },
+      "types": "./dist/safe-html-iframe.d.ts",
+      "edge-light": "./dist/safe-html-iframe.js",
+      "browser": "./dist/safe-html-iframe.js",
+      "default": "./dist/safe-html-iframe.js"
     }
   },
   "types": "./dist/index.d.ts",
