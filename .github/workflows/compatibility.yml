@@ -44,6 +44,7 @@ jobs:
       - run: node node_modules/playwright-core/cli.js install --with-deps chromium firefox webkit
       - run: npm run test:sanitize-browser
       - run: npm run test:frame-browser
+      - run: npm run test:markdown-browser
 
   compatibility:
     name: compatibility-node${{ matrix.node }}-${{ matrix.fixture }}-${{ matrix.mode }}

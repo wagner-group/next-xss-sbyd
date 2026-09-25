@@ -43,3 +43,25 @@ import {SafeHtmlIframe} from "next-xss-sbyd/safe-html-iframe";
 <SafeHtmlIframe value="" title="Preview" referrerPolicy="unsafe-url" />;
 // @ts-expect-error Arbitrary native props are not forwarded.
 <SafeHtmlIframe value="" title="Preview" onLoad={() => undefined} />;
+
+
+import {SafeMarkdown} from "next-xss-sbyd/markdown";
+
+<SafeMarkdown>{"# Article"}</SafeMarkdown>;
+<SafeMarkdown children="" />;
+// @ts-expect-error Source text is required.
+<SafeMarkdown />;
+// @ts-expect-error Markdown is text, never an already-rendered React element.
+<SafeMarkdown><p>Article</p></SafeMarkdown>;
+// @ts-expect-error Only string input is accepted.
+<SafeMarkdown>{42}</SafeMarkdown>;
+// @ts-expect-error Place layout attributes on an application-owned wrapper.
+<SafeMarkdown className="prose">Article</SafeMarkdown>;
+// @ts-expect-error Raw HTML cannot be enabled.
+<SafeMarkdown skipHtml={false}>Article</SafeMarkdown>;
+// @ts-expect-error There are no caller-provided plugins.
+<SafeMarkdown rehypePlugins={[]}>Article</SafeMarkdown>;
+// @ts-expect-error Custom components cannot replace the final safety boundary.
+<SafeMarkdown components={{}}>Article</SafeMarkdown>;
+// @ts-expect-error URL validation is fixed.
+<SafeMarkdown urlTransform={(url: string) => url}>Article</SafeMarkdown>;

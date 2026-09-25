@@ -1,0 +1,20 @@
+export const source = '# Safe Markdown\n\n**formatting** and *emphasis*\n\n[visit](/destination) [blocked](jav&#x61;script:globalThis.__markdownAttack=1)\n\n![pixel](/pixel.png) ![fallback](data:image/svg+xml,attack)\n\n<script>globalThis.__markdownAttack=1</script>\n\n<img src="/attack" onerror="globalThis.__markdownAttack=1">\n\n<svg onload="globalThis.__markdownAttack=1"></svg>\n\n<math><mtext>hidden</mtext></math>\n\n<a id="location" name="document" onclick="globalThis.__markdownAttack=1">raw text</a>\n\n{globalThis.__markdownAttack=1}\n\n```js\n<script>literal text</script>\n```';
+export const attacks = [
+  '[bad](javascript:globalThis.__markdownAttack=1)',
+  '[bad](JaVaScRiPt:globalThis.__markdownAttack=1)',
+  '[bad](jav&#x61;script:globalThis.__markdownAttack=1)',
+  '[bad](java&#x09;script:globalThis.__markdownAttack=1)',
+  '[bad](data:text/html,attack)',
+  '[bad](blob:https://example.com/id)',
+  '[bad](//example.com/path)',
+  '![fallback](data:image/svg+xml,attack)',
+  '![fallback](blob:https://example.com/id)',
+  '![fallback](//example.com/pixel.png)',
+  '<script>globalThis.__markdownAttack=1</script>',
+  '<img src="/attack" onerror="globalThis.__markdownAttack=1">',
+  '<svg><foreignObject><img src="/attack" onerror="globalThis.__markdownAttack=1"></foreignObject></svg>',
+  '<math><mtext><img src="/attack" onerror="globalThis.__markdownAttack=1"></mtext></math>',
+  '<form id="document" name="location"><input name="cookie"></form>',
+  '> - **nested\n\n<div><p></div></p>\n\n[broken](<javascript:alert(1)>)',
+  '{globalThis.__markdownAttack=1}',
+];

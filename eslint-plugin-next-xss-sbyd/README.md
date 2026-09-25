@@ -37,10 +37,29 @@ limit enforced by continuous integration (CI), lowered as findings are fixed,
 and the switch to runtime enforcement and `recommended`. Do not ship with the
 lint migration preset.
 
+## Optional Markdown migration
+
+Add `...xssSbyd.configs.markdownMigration` after `lintMigration` while inventorying
+Markdown use, or `...xssSbyd.configs.markdown` after `recommended` for errors.
+Neither is included in the base presets. These rules check imports without
+requiring type services; the base preset's other rules retain their type setup.
+Set `"next-xss-sbyd": {"markdown": true}` in the application's package.json to
+make `check-config` verify both optional rules at the selected stage's severity.
+`audit --recommended` also includes Markdown rules when that setting is selected.
+
+The Markdown inventory runs during audit and can be inspected directly with
+`node node_modules/next-xss-sbyd/dist/inventory.js . --markdown --json`.
+It records `.md`/`.mdx` documents and candidate renderer, plugin, configuration,
+HTML sink, and unknown-wrapper sites. Inventory is heuristic; MDX file contents
+are not analyzed as executable code. Review unknown wrappers and unresolved
+loaders before interpreting absence of findings. See [Markdown migration](../docs/markdown.md).
+
 ## Rules
 
 | Rule | Default | Operation checked |
 | --- | --- | --- |
+| `require-safe-markdown` | opt-in | React Markdown renderer import boundaries |
+| `no-unreviewed-mdx-execution` | opt-in | MDX compilation/execution import boundaries |
 | `no-danger` | error | Raw JSX HTML insertion and `__html` objects |
 | `no-unsafe-html-response` | error | `Response`/`NextResponse` constructors and unchecked returned responses, including typed fetch/helper calls, in route, middleware, proxy, and configured server files |
 | `no-unsafe-api-send` | error | Raw text/bytes and safe HTML/stream values at ordinary `send`, `write`, and `end` calls on Pages/Node responses |

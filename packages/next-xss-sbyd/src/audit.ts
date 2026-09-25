@@ -6,9 +6,11 @@ import type { ESLint as ESLintType } from "eslint";
 import type { AuditFinding, Diagnostic, Exemption } from "./cli-types.js";
 import type { Project } from "./project.js";
 import { relativePath, sourceFiles } from "./project.js";
-import { inventoryResponses } from "./inventory.js";
+import { inventoryMarkdown, inventoryResponses } from "./inventory.js";
 
 const RULE_CATEGORIES: Readonly<Record<string, string>> = {
+  "require-safe-markdown": "markdown-renderer",
+  "no-unreviewed-mdx-execution": "mdx-execution",
   "no-danger": "raw-html",
   "safe-jsx-urls-active": "active-url",
   "no-unsafe-html-response": "html-response",
@@ -79,7 +81,7 @@ function findings(
           ...(message.messageId ? { messageId: message.messageId } : {}),
           message: message.message,
           severity: message.severity as 1 | 2,
-          category: RULE_CATEGORIES[ruleName] ?? ruleName,
+          category: message.messageId === "coverage" ? "coverage" : RULE_CATEGORIES[ruleName] ?? ruleName,
           setup:
             ruleName === "require-safe-jsx-runtime" &&
             message.messageId === "config",
@@ -406,10 +408,11 @@ export async function runAudit(
     try {
       const pluginPath = requireFromApp(project).resolve("eslint-plugin-next-xss-sbyd");
       const loaded = (await import(pathToFileURL(pluginPath).href)) as {
-        default: { configs: { recommended: unknown } };
+        default: { configs: { recommended: unknown[]; markdown?: unknown[] } };
       };
-      const recommended = loaded.default.configs
-        .recommended as ESLintType.Options["overrideConfig"];
+      const recommended = [...loaded.default.configs.recommended,
+        ...(project.packageJson["next-xss-sbyd"]?.markdown ? loaded.default.configs.markdown ?? [] : []),
+      ] as ESLintType.Options["overrideConfig"];
       const recommendedEngine = new ESLint({
         cwd: project.root,
         overrideConfigFile: true,
@@ -531,6 +534,15 @@ export async function runAudit(
         "Recommended-preset findings are labeled recommended and are not current application findings.",
       action: "Remediate them before enabling the recommended preset.",
     });
+  const markdownInventory = await inventoryMarkdown(project.root);
+  if (markdownInventory.length > 0) diagnostics.push({
+    id: "audit.markdown-inventory",
+    category: "coverage",
+    status: "warning",
+    message: `The heuristic Markdown inventory found ${markdownInventory.length} document or integration site(s). MDX contents and unknown wrappers are not analyzed.`,
+    action: "Review renderer/configuration sites, raw-HTML plugins, final sanitization, and MDX source authorization. Opt into the Markdown preset after inventorying. Absence of findings is not a safety proof.",
+    evidence: markdownInventory.map((item) => `${item.file}:${item.line}:${item.column} ${item.category}: ${item.detail}`).join("\n"),
+  });
   const responseInventory = await inventoryResponses(project.root);
   diagnostics.push({
     id: "audit.response-inventory",
