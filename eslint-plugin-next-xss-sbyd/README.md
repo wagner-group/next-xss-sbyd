@@ -47,7 +47,7 @@ lint migration preset.
 | `require-safe-api-route` | error | Pages API default exports require `withSafeApiRoute`, including composed wrappers |
 | `require-safe-route-handler` | error | Every App Router HTTP export requires `withSafeRouteHandler` |
 | `no-raw-render-to-string` | error | Direct React server-renderer imports |
-| `safe-jsx-urls-active` | error | Active-resource URLs require `TrustedResourceUrl` |
+| `safe-jsx-urls-active` | error | Active-resource URLs require `TrustedScriptUrl` |
 | `safe-jsx-urls-navigation` | not in preset | Dangerous passive-URL literals, for standalone use |
 | `require-safe-jsx-runtime` | error | Required JSX runtime configuration and direct factory/runtime bypasses |
 | `no-html-content-type` | error | Non-passive, invalid or dynamic Content-Type selection; neutralization or removal of response security headers |

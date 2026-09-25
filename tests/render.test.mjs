@@ -3,7 +3,7 @@ import {createServer} from "node:http";
 import test from "node:test";
 
 import {createElement, Suspense, use} from "react";
-import {trustedResourceUrl} from "safevalues";
+import {trustedScriptUrl} from "next-xss-sbyd";
 import {SafeResponse, safePipe} from "next-xss-sbyd";
 import {
   safeRenderToPipeableStream,
@@ -31,7 +31,7 @@ test("safeRenderToString relies on React escaping and returns sink-compatible Sa
 test("Web rendering remains opaque and preserves allReady and trusted bootstrap scripts", async () => {
   const stream = await safeRenderToReadableStream(
     createElement("html", null, createElement("body", null, "streamed <safe>")),
-    {bootstrapScripts: [trustedResourceUrl`/client.js`]},
+    {bootstrapScripts: [trustedScriptUrl`/client.js`]},
   );
   await stream.allReady;
   const response = new SafeResponse(stream);

@@ -167,7 +167,7 @@ the wrappers are not a promise that every raw renderer option has identical sema
 
 ## safe-jsx-urls-active
 
-Requires `TrustedResourceUrl` in these attributes:
+Requires `TrustedScriptUrl` in these attributes:
 
 - `src` on `script`, imported `next/script`, `iframe`, `frame`, and `embed`.
 - `data` on `object`.
@@ -181,17 +181,17 @@ Requires `TrustedResourceUrl` in these attributes:
 even in attributes that accept trusted URLs.
 
 ```ts
-import {trustedResourceUrl} from "next-xss-sbyd";
+import {trustedScriptUrl} from "next-xss-sbyd";
 
-const scriptUrl = trustedResourceUrl`/assets/application.js`;
+const scriptUrl = trustedScriptUrl`/assets/application.js`;
 ```
 
-This constructs a trusted value for APIs that accept `TrustedResourceUrl`.
+This constructs a trusted value for APIs that accept `TrustedScriptUrl`.
 React's native `script.src` type accepts a string, so the constructed object cannot
 be passed directly to that prop. Do not cast it to a string to bypass the mismatch.
 
 Select developer-controlled resources; do not cast an attacker-controlled URL into
-a trusted type. Review embedded content; use `SafeExternalIframe` with a `TrustedResourceUrl` and an
+a trusted type. Review embedded content; use `SafeExternalIframe` with a `TrustedScriptUrl` and an
 explicit sandbox of `""` or `"allow-scripts"`. See [URL guidance](../docs/newcode.md#urls-automatic-validation-for-passive-sinks)
 for the distinction between ordinary navigation and active content.
 

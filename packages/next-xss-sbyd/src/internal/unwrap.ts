@@ -1,10 +1,11 @@
+import type {TrustedScriptUrl} from "../trusted-script-url.js";
 import {
   unwrapHtml as unwrapSafeValuesHtml,
   unwrapResourceUrl as unwrapSafeValuesResourceUrl,
   unwrapScript as unwrapSafeValuesScript,
   unwrapStyleSheet as unwrapSafeValuesStyleSheet,
 } from "safevalues";
-import type {SafeHtml, SafeScript, SafeStyleSheet, TrustedResourceUrl} from "safevalues";
+import type {SafeHtml, SafeScript, SafeStyleSheet} from "safevalues";
 
 function duplicateCopyError(type: string, cause: unknown): TypeError {
   return new TypeError(
@@ -29,7 +30,7 @@ export function unwrapStyleSheet(value: SafeStyleSheet): string {
   try { return unwrapSafeValuesStyleSheet(value); } catch (error) { throw duplicateCopyError("SafeStyleSheet", error); }
 }
 
-/** Unwraps TrustedResourceUrl with this package's SafeValues copy or fails closed. */
-export function unwrapResourceUrl(value: TrustedResourceUrl): string {
-  try { return String(unwrapSafeValuesResourceUrl(value)); } catch (error) { throw duplicateCopyError("TrustedResourceUrl", error); }
+/** Unwraps TrustedScriptUrl with this package's SafeValues copy or fails closed. */
+export function unwrapResourceUrl(value: TrustedScriptUrl): string {
+  try { return String(unwrapSafeValuesResourceUrl(value)); } catch (error) { throw duplicateCopyError("TrustedScriptUrl", error); }
 }

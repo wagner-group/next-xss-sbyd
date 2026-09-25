@@ -141,7 +141,7 @@ before marking it safe.
 | `SafeHtml` | HTML safe to insert or emit | `htmlEscape`, `sanitizeUserHtml`, safe React renderer from JSX |
 | `SafeScript` | compile-time constant inline JavaScript | `safeScript` |
 | `SafeStyleSheet` | compile-time constant CSS | `safeStyleSheet` |
-| `TrustedResourceUrl` | URL of a resource that's trusted because it's controlled by the developer | `trustedResourceUrl` |
+| `TrustedScriptUrl` | URL trusted to serve JavaScript that may execute in the application | `trustedScriptUrl` |
 
 Reusing these types allows us to take advantage of the
 careful vetting of the `safevalues` package.
@@ -160,7 +160,7 @@ options:
 | `SafeNavigationUrl` | root-relative, HTTP(S), `mailto:`, `tel:` | anchor and `Link` | `navigationUrl` |
 | `SafeResourceUrl` | root-relative or HTTP(S) passive resource | image/media `src` | `resourceUrl` |
 | `SafeFormActionUrl` | same-origin root-relative target | form action | `formActionUrl` |
-| `TrustedResourceUrl` | resource controlled by the developer | script, iframe | `trustedResourceUrl` |
+| `TrustedScriptUrl` | resource controlled by the developer | script, iframe | `trustedScriptUrl` |
 
 `navigationUrl`, `resourceUrl`, and `formActionUrl` whitelist the
 protocol (scheme). They reject controls, whitespace,
@@ -189,18 +189,18 @@ are merged, and throws if the URL is unsafe. The brands remain useful for early
 validation and non-JSX APIs, but passive JSX props do not require them.
 
 Active sinks use SafeValues objects. In particular,
-`TrustedResourceUrl` is a SafeValues object, because it refers to
+`TrustedScriptUrl` is a SafeValues object, because it refers to
 Javascript that will be executed (or content that can cause execution
 of Javascript). Active content requires stronger validation, to
 check that origin and path are literal developer-controlled data.
 
 React's type system only accepts a string for the `src` attribute of an
 iframe, so a web application cannot write JSX like `<iframe src=...>`
-and pass a `TrustedResourceUrl` as the URL.
+and pass a `TrustedScriptUrl` as the URL.
 `SafeExternalIframe` provides a way to express this,
 while complying with the TypeScript type system.
 At runtime `SafeExternalIframe` verifies that the URL is a safe
-`TrustedResourceUrl`, and requires that the iframe either choose
+`TrustedScriptUrl`, and requires that the iframe either choose
 all sandbox restrictions (`sandbox=""`) or allow scripts without
 same-origin privileges (`sandbox="allow-scripts"`).
 In particular, it never permits `allow-scripts` together with
@@ -233,7 +233,7 @@ can call `safeRenderToString` to render it to a `SafeHtml` value. This is safe b
 - This package's JSX runtime rejects raw HTML in `dangerouslySetInnerHTML` on
   built-in HTML/SVG elements. It also validates their URL attributes to prevent XSS.
 - ESLint blocks dynamic data inside script or style blocks.
-- Active URLs that can introduce Javascript must be validated (must be a `TrustedResourceUrl` value).
+- Active URLs that can introduce Javascript must be validated (must be a `TrustedScriptUrl` value).
 - `SafeBlock` can be used to insert sanitized HTML into a tree. It uses runtime checks to ensure that only `SafeHtml` can be inserted.
 
 We can't inspect third-party components, so third-party components

@@ -4,7 +4,7 @@ import type {
   SafeResourceUrl,
   SafeScript,
   SafeStyleSheet,
-  TrustedResourceUrl,
+  TrustedScriptUrl,
 } from "next-xss-sbyd";
 import {
   formActionUrl,
@@ -26,7 +26,7 @@ import {
 declare const html: SafeHtml;
 declare const script: SafeScript;
 declare const styleSheet: SafeStyleSheet;
-declare const resourceUrl: TrustedResourceUrl;
+declare const resourceUrl: TrustedScriptUrl;
 declare const nonce: CspNonce;
 
 new SafeResponse(html);
@@ -46,7 +46,7 @@ SafeExternalIframe({src: resourceUrl, sandbox: "allow-same-origin"});
 SafeExternalIframe({src: resourceUrl, sandbox: "allow-scripts allow-same-origin"});
 // @ts-expect-error SafeExternalIframe does not accept srcDoc.
 SafeExternalIframe({src: resourceUrl, sandbox: "", srcDoc: "<p>unsafe</p>"});
-// @ts-expect-error SafeExternalIframe requires TrustedResourceUrl rather than a string.
+// @ts-expect-error SafeExternalIframe requires TrustedScriptUrl rather than a string.
 SafeExternalIframe({src: "https://example.com/embed", sandbox: ""});
 SafeJsonScript({id: "state", data: {safe: true}});
 SafeScriptBlock({script, nonce});
@@ -216,3 +216,17 @@ SafeIframe(legacyProps);
 SafeExternalIframe(legacyProps);
 // @ts-expect-error The deprecated sandbox type retains the fixed policy.
 const invalidLegacySandbox: SafeIframeSandbox = "allow-same-origin";
+
+// New and deprecated names retain the same unforgeable SafeValues type.
+import {trustedScriptUrl, trustedResourceUrl} from "next-xss-sbyd";
+import type {TrustedResourceUrl} from "next-xss-sbyd";
+const scriptUrl: TrustedScriptUrl = trustedScriptUrl`/app.js`;
+const legacyScriptUrl: TrustedResourceUrl = scriptUrl;
+const renamedScriptUrl: TrustedScriptUrl = trustedResourceUrl`/legacy.js`;
+safeRenderToReadableStream(null, {bootstrapScripts: [legacyScriptUrl, {src: renamedScriptUrl}]});
+// @ts-expect-error Raw strings are not trusted script URLs.
+const rawScriptUrl: TrustedScriptUrl = "/raw.js";
+// @ts-expect-error Lookalike objects cannot forge SafeValues' private brand.
+const forgedScriptUrl: TrustedScriptUrl = {privateDoNotAccessOrElseWrappedResourceUrl: "/forged.js"};
+// @ts-expect-error The builder requires a tagged template, not a string.
+trustedScriptUrl("/app.js");

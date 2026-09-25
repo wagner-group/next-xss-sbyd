@@ -148,7 +148,7 @@ check does not make that resource safe to serve as an HTML document.
 | --- | --- |
 | `dangerouslySetInnerHTML` | JSX, or `SafeBlock` with `SafeHtml` |
 | Passive URL props | Ordinary strings through the validating JSX runtime |
-| Active-content URL props | `TrustedResourceUrl` |
+| Active-content URL props | `TrustedScriptUrl` |
 | Dynamic inline `script` or `style` | JSON components, bundles, or literal safe blocks |
 | HTML at `Response` / `NextResponse` | `SafeHtml` or `SafeStream` through `SafeResponse` / `SafeNextResponse` |
 | Unwrapped Pages API handler | `withSafeApiRoute` around every handler, including JSON-only routes |
@@ -212,8 +212,8 @@ root-relative targets. Invalid values throw. `next/image` static-import objects 
 function-valued server actions pass through unchanged.
 
 Active-content props such as `script[src]`, `iframe[src]`, executable `link[href]`, and
-SVG resource references require a `TrustedResourceUrl` object created by this package; `base[href]` and
-meta refresh are forbidden. Use `trustedResourceUrl` only for literal,
+SVG resource references require a `TrustedScriptUrl` object created by this package; `base[href]` and
+meta refresh are forbidden. Use `trustedScriptUrl` only for literal,
 developer-controlled resources. Branded passive URL builders remain useful when code
 needs to validate a URL before rendering it. Their return types record which checks
 the URL passed: navigation, resource loading, or form submission. These values remain
@@ -223,17 +223,17 @@ Use `SafeExternalIframe` instead of an intrinsic iframe. React's intrinsic `src`
 only strings and cannot express the required safe value:
 
 ```tsx
-import {SafeExternalIframe, trustedResourceUrl} from "next-xss-sbyd";
+import {SafeExternalIframe, trustedScriptUrl} from "next-xss-sbyd";
 
 <SafeExternalIframe
-  src={trustedResourceUrl`https://video.example/embed/player`}
+  src={trustedScriptUrl`https://video.example/embed/player`}
   sandbox="allow-scripts"
   title="Product video"
   loading="lazy"
 />
 ```
 
-The component verifies `TrustedResourceUrl` at runtime and accepts only `sandbox=""`
+The component verifies `TrustedScriptUrl` at runtime and accepts only `sandbox=""`
 or `sandbox="allow-scripts"`. The empty profile is suitable for static HTML documents;
 use the latter only when the framed document must run scripts. The component forbids
 `allow-same-origin`, `srcDoc`, and `dangerously*` props. Configure CSP `frameSrc` with
@@ -385,12 +385,12 @@ composition such as `withAuth(withSafeApiRoute(handler))`.
 For a Web stream:
 
 ```tsx
-import {SafeResponse, trustedResourceUrl} from "next-xss-sbyd";
+import {SafeResponse, trustedScriptUrl} from "next-xss-sbyd";
 import {safeRenderToReadableStream} from "next-xss-sbyd/render";
 
 const stream = await safeRenderToReadableStream(
   <html><body>...</body></html>,
-  {bootstrapScripts: [trustedResourceUrl`/client.js`]},
+  {bootstrapScripts: [trustedScriptUrl`/client.js`]},
 );
 return new SafeResponse(stream);
 ```
@@ -398,7 +398,7 @@ return new SafeResponse(stream);
 Import renderers from `next-xss-sbyd/render`. Their stream objects hide the raw chunks
 so applications cannot concatenate or transform them. The `bootstrapScripts` and
 `bootstrapModules` options name code the browser loads to start the rendered page;
-their URLs require `TrustedResourceUrl`. Keep lint enabled to catch changes to
+their URLs require `TrustedScriptUrl`. Keep lint enabled to catch changes to
 response headers after construction. The response APIs are described further in the
 [design appendix](design.md#appendix-response-apis).
 
@@ -482,7 +482,7 @@ The application is using the model correctly when:
 
 - user text stays in JSX;
 - rich HTML passes through the fixed sanitizer;
-- each dynamic URL is validated for its use, and active resources use `TrustedResourceUrl`;
+- each dynamic URL is validated for its use, and active resources use `TrustedScriptUrl`;
 - data scripts use the JSON components;
 - HTML responses and renderer streams use paired safe APIs;
 - protected dynamic routes have a verified nonce CSP;
