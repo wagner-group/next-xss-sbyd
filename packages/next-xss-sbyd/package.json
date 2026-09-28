@@ -147,7 +147,7 @@
   },
   "dependencies": {
     "@braintree/sanitize-url": "^7.1.2",
-    "dompurify": "^3.4.15",
+    "dompurify": "^3.4.16",
     "hast-util-to-jsx-runtime": "^2.3.6",
     "jsdom": "^30.1.1",
     "parse5": "^8.0.1",
