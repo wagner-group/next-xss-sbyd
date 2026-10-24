@@ -4,6 +4,7 @@ import test from "node:test";
 import {NextRequest, NextResponse} from "next/server.js";
 import {
   createContentSecurityPolicy,
+  createCspNonce,
   createCspReportHandler,
   createXssSbydHandler,
   reportsToCspOptions,
@@ -33,6 +34,49 @@ test("CSP policy is restrictive, configurable, and syntactically injection-safe"
   assert.throws(() => createContentSecurityPolicy(validNonce, {reportTo: "https://evil.test/report"}), /Reporting API endpoint/);
   assert.throws(() => createContentSecurityPolicy(validNonce, {reportUri: "/\\\\evil.test/report"}), /report URI/);
   assert.throws(() => createContentSecurityPolicy(validNonce, {reportTo: "/\\\\evil.test/report"}), /Reporting API endpoint/);
+});
+
+test("Trusted Types, base-uri and development eval are caller options, and default to today's policy", () => {
+  const unchanged = createContentSecurityPolicy(validNonce);
+  assert.doesNotMatch(unchanged, /trusted-types/);
+  assert.match(unchanged, /base-uri 'self'/);
+  assert.equal(createContentSecurityPolicy(validNonce, {trustedTypes: []}).includes("trusted-types"), false);
+
+  const strict = createContentSecurityPolicy(validNonce, {
+    allowDevelopmentEval: false,
+    baseUri: "'none'",
+    trustedTypes: ["nextjs#bundler", "google#safe"],
+  });
+  assert.match(strict, /; require-trusted-types-for 'script'; trusted-types nextjs#bundler google#safe$/);
+  assert.match(strict, /base-uri 'none'/);
+  assert.doesNotMatch(strict, /unsafe-eval/);
+
+  const reported = createContentSecurityPolicy(validNonce, {reportUri: "/csp-report", trustedTypes: ["google#safe"]});
+  assert.match(reported, /trusted-types google#safe; report-uri \/csp-report$/);
+
+  for (const name of ["*", "'none'", "has space", "semi;colon", "", "a,b"]) {
+    assert.throws(() => createContentSecurityPolicy(validNonce, {trustedTypes: [name]}), /Trusted Types policy name/);
+  }
+  assert.throws(() => createContentSecurityPolicy(validNonce, {baseUri: "*"}), /base-uri/);
+});
+
+test("development eval is on by default and declinable", () => {
+  const previous = process.env.NODE_ENV;
+  process.env.NODE_ENV = "development";
+  try {
+    assert.match(createContentSecurityPolicy(validNonce), /'unsafe-eval'/);
+    assert.doesNotMatch(createContentSecurityPolicy(validNonce, {allowDevelopmentEval: false}), /'unsafe-eval'/);
+  } finally {
+    if (previous === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previous;
+  }
+});
+
+test("createCspNonce mints a nonce the policy builder accepts", () => {
+  const nonce = createCspNonce();
+  assert.match(nonce, /^[A-Za-z0-9_-]{22}$/);
+  assert.notEqual(nonce, createCspNonce());
+  assert.ok(createContentSecurityPolicy(nonce).includes(`'nonce-${nonce}'`));
 });
 
 test("standalone handler overwrites inbound nonce and sets request and response headers", async () => {

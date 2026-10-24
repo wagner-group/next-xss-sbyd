@@ -15,6 +15,26 @@ export interface XssSbydCspOptions {
   readonly mediaSrc?: readonly string[];
   readonly frameSrc?: readonly string[];
   readonly formAction?: readonly string[];
+  /**
+   * Trusted Types policy names to require. When set, the policy gains
+   * `require-trusted-types-for 'script'` and a `trusted-types` directive listing
+   * these names, which is what makes an unsanitized DOM write throw rather than
+   * execute. Omitted, neither directive is emitted.
+   *
+   * A Next.js client build needs `nextjs#bundler`, which Next's own webpack config
+   * sets and the chunk loader mints its script URLs through; code that goes through
+   * safevalues needs `google#safe`.
+   */
+  readonly trustedTypes?: readonly string[];
+  /** `base-uri`. Defaults to `'self'`. `'none'` if nothing serves a `<base>` element. */
+  readonly baseUri?: "'self'" | "'none'";
+  /**
+   * Whether `'unsafe-eval'` may be added to `script-src` when `NODE_ENV` is
+   * `development`. Defaults to true. Set it false to serve the production policy in
+   * development: a browser test run against a weaker policy than production's does
+   * not measure production.
+   */
+  readonly allowDevelopmentEval?: boolean;
   readonly reportUri?: string;
   readonly reportTo?: string;
 }
@@ -351,6 +371,23 @@ function validateSources(name: keyof typeof DIRECTIVE_OPTION, values: readonly s
   return values;
 }
 
+/** CSP3 `tt-policy-name`. Excludes `*` and `'none'`, neither of which is a name. */
+const TRUSTED_TYPES_NAME_PATTERN = /^[A-Za-z0-9\-#=_/@.%]+$/;
+
+function validateTrustedTypes(names: readonly string[]): readonly string[] {
+  for (const name of names) {
+    if (!TRUSTED_TYPES_NAME_PATTERN.test(name)) {
+      throw new TypeError(`Invalid Trusted Types policy name: ${JSON.stringify(name)}`);
+    }
+  }
+  return names;
+}
+
+function validateBaseUri(value: string): string {
+  if (value !== "'self'" && value !== "'none'") throw new TypeError(`Invalid CSP base-uri: ${JSON.stringify(value)}`);
+  return value;
+}
+
 function createNonce(): CspNonce {
   const bytes = new Uint8Array(16);
   crypto.getRandomValues(bytes);
@@ -362,12 +399,26 @@ function directive(name: string, sources: readonly string[]): string {
   return `${name} ${sources.join(" ")}`;
 }
 
+/**
+ * Mints a nonce for {@link createContentSecurityPolicy}: 16 bytes of CSPRNG output,
+ * base64url, 22 characters.
+ *
+ * `getNonce()` reads the nonce of a request that already carries one, which is what
+ * a page or route handler wants. This is for a caller that serves the header itself
+ * and so has to mint the value: without it, the only way to obtain a `CspNonce` is
+ * to assert the brand, which `no-unsafe-cast-to-safe-type` reports.
+ */
+export function createCspNonce(): CspNonce {
+  return createNonce();
+}
+
 /** Builds the strict per-request CSP used by xss-sbyd middleware. */
 export function createContentSecurityPolicy(nonce: CspNonce, options: XssSbydCspOptions = {}): string {
   if (!NONCE_PATTERN.test(nonce)) throw new TypeError("Invalid CSP nonce");
   const script = ["'self'", `'nonce-${nonce}'`, "'strict-dynamic'", ...validateSources("script-src", options.scriptSrc ?? [])];
-  // Next.js tooling needs eval in development; caller sources never receive this exception.
-  if (process.env.NODE_ENV === "development") script.push("'unsafe-eval'");
+  // Next.js tooling needs eval in development; caller sources never receive this
+  // exception, and a caller that measures against production can decline it.
+  if ((options.allowDevelopmentEval ?? true) && process.env.NODE_ENV === "development") script.push("'unsafe-eval'");
   const styleSources = validateSources("style-src", options.styleSrc ?? []);
   const directives = [
     "default-src 'self'",
@@ -381,10 +432,14 @@ export function createContentSecurityPolicy(nonce: CspNonce, options: XssSbydCsp
     directive("media-src", validateSources("media-src", options.mediaSrc ?? ["'self'"])),
     directive("frame-src", validateSources("frame-src", options.frameSrc ?? ["'none'"])),
     "object-src 'none'",
-    "base-uri 'self'",
+    `base-uri ${validateBaseUri(options.baseUri ?? "'self'")}`,
     directive("form-action", validateSources("form-action", options.formAction ?? ["'self'"])),
     "frame-ancestors 'none'",
   ];
+  if (options.trustedTypes !== undefined && options.trustedTypes.length > 0) {
+    directives.push("require-trusted-types-for 'script'");
+    directives.push(directive("trusted-types", validateTrustedTypes(options.trustedTypes)));
+  }
   if (options.reportUri !== undefined) {
     if (!options.reportUri.startsWith("/") || options.reportUri.startsWith("//") || options.reportUri.includes("\\") || !SOURCE_PATTERN.test(options.reportUri)) {
       throw new TypeError(`Invalid CSP report URI: ${JSON.stringify(options.reportUri)}`);
